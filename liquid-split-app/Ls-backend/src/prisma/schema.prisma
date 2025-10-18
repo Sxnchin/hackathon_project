@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  balance   Float    @default(0)
+  pots      PotMember[]
+  createdAt DateTime @default(now())
+}
+
+model Pot {
+  id          Int          @id @default(autoincrement())
+  name        String
+  totalAmount Float         @default(0)
+  members     PotMember[]
+  createdAt   DateTime      @default(now())
+}
+
+model PotMember {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  potId     Int
+  share     Float   @default(0)
+  user      User    @relation(fields: [userId], references: [id])
+  pot       Pot     @relation(fields: [potId], references: [id])
+}
