@@ -1,4 +1,5 @@
-# LiquidSplit Backend — Stripe & Plaid Integration
+
+# LiquidSplit Backend — Stripe Integration
 
 ## Quickstart: Stripe Webhooks & CLI
 
@@ -46,35 +47,12 @@
      ```
    - Check backend logs for event handling.
 
-## Plaid Integration (Setup)
-
-1. **Get Plaid API keys**
-   - Sign up at https://dashboard.plaid.com/signup
-   - Get `PLAID_CLIENT_ID`, `PLAID_SECRET`, and set `PLAID_ENV=sandbox` in `.env`.
-
-2. **Install Plaid SDK**
-   ```powershell
-   npm install plaid
-   ```
-
-3. **Add Plaid routes**
-   - See [`src/routes/plaid.js`](src/routes/plaid.js) for example endpoints:
-     - `/plaid/link-token` — create a link token
-     - `/plaid/exchange` — exchange public token for access token
-     - `/plaid/accounts` — fetch accounts
-
-4. **Frontend**
-   - Use Plaid Link (React or JS) with the link token from `/plaid/link-token`.
-   - On success, POST the public token to `/plaid/exchange`.
-
 ## Troubleshooting
 - **Stripe webhook 400 errors:**
   - Ensure `/stripe/webhook` uses `express.raw({ type: "application/json" })` and is mounted before any body parser.
   - Restart backend after `.env` changes.
 - **Database errors:**
   - Run migrations and check your `DATABASE_URL`.
-- **Plaid errors:**
-  - Use sandbox keys for dev. Check logs for error details.
 
 ## Useful Commands
 ```powershell
@@ -86,4 +64,4 @@ stripe trigger payment_intent.succeeded  # Send test event
 
 ---
 
-For full docs, see [Stripe](https://stripe.com/docs) and [Plaid](https://plaid.com/docs/).
+For full docs, see [Stripe](https://stripe.com/docs).
