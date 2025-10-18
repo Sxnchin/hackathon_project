@@ -62,6 +62,36 @@ function Home() {
         </motion.div>
       </section>
 
+      {/* Features Section */}
+<section id="features" className="features-section">
+  <h2>Powerful Features, Seamless Experience</h2>
+  <p className="features-subtitle">
+    Everything you need to split payments and co-own purchases with zero friction.
+  </p>
+
+  <div className="feature-grid">
+    <div className="feature-card">
+      <img src="/icons/secure.svg" alt="Secure Payments" className="feature-icon" />
+      <h3>Secure Payments</h3>
+      <p>Protected by end-to-end encryption to keep every transaction private.</p>
+    </div>
+
+    <div className="feature-card">
+      <img src="/icons/instant.svg" alt="Instant Splitting" className="feature-icon" />
+      <h3>Instant Splitting</h3>
+      <p>Divide payments in real-time — no delays or awkward calculations.</p>
+    </div>
+
+    <div className="feature-card">
+      <img src="/icons/receipt.svg" alt="Digital Receipts" className="feature-icon" />
+      <h3>Verified Receipts</h3>
+      <p>Each user receives a blockchain-backed digital receipt proving ownership.</p>
+    </div>
+  </div>
+</section>
+
+      
+
       {/* How It Works Section */}
       <section id="how-it-works" className="how-section">
         <motion.h2

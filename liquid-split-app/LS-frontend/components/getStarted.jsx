@@ -1,18 +1,39 @@
 import React, { useState } from "react";
 
 function GetStarted() {
-  // Define state variables for form fields
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault(); 
-    console.log("Form submitted:", { email, username, password });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-    // You could later connect this to a backend or API
-    alert(`Welcome ${username || "User"}! Your account setup has started.`);
+    try {
+      const res = await fetch("http://localhost:4000/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: username,
+          email,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      alert(`✅ Welcome ${data.user.name}!`);
+      console.log("User created:", data);
+    } catch (err) {
+      alert(`❌ ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -21,43 +42,36 @@ function GetStarted() {
       <p>Ready to simplify your shared purchases? Getting started with LiquidSplit is easy!</p>
 
       <form onSubmit={handleSubmit}>
-        {/* Username */}
         <label htmlFor="username">Username:</label>
         <input
           type="text"
           id="username"
-          name="username"
-          placeholder="Enter your username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
         />
 
-        {/* Email */}
         <label htmlFor="email">Email:</label>
         <input
           type="email"
           id="email"
-          name="email"
-          placeholder="Enter your email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
 
-        {/* Password */}
         <label htmlFor="password">Password:</label>
         <input
           type="password"
           id="password"
-          name="password"
-          placeholder="Create a password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
 
-        <button type="submit">Get Started</button>
+        <button type="submit" disabled={loading}>
+          {loading ? "Creating..." : "Get Started"}
+        </button>
       </form>
     </section>
   );
