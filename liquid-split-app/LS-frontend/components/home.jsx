@@ -1,13 +1,9 @@
-import React from "react"; // No longer need useState here
+import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import "../src/app.css";
 
-// Demo component is no longer imported here as it's a separate page
-
 function Home() {
-  // The activeModal state is no longer needed
-
   const fadeUp = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 80 } },
@@ -27,16 +23,21 @@ function Home() {
     <div className="app-container">
       {/* Navbar */}
       <motion.nav
+        className="navbar" // ✅ FIX: Added the className to apply flexbox styles
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 90, delay: 0.2 }}
       >
         <div className="nav-logo">LiquidSplit</div>
+        {/* ✅ FIX: Consolidated all links into one container for proper alignment */}
         <div className="nav-links">
           <a href="#how-it-works">How It Works</a>
           <a href="#features">Features</a>
           <Link to="/get-started" className="get-started">
             Get Started
+          </Link>
+          <Link to="/login" className="get-started">
+            Login
           </Link>
         </div>
       </motion.nav>
@@ -55,7 +56,6 @@ function Home() {
             The easiest way to co-own anything with friends. Split payments in
             real time — powered by LiquidSplit.
           </p>
-          {/* Change motion.button to a Link styled as a button */}
           <Link to="/demo" className="cta-btn">
             Try the Demo
           </Link>
@@ -92,8 +92,6 @@ function Home() {
       <motion.footer className="footer" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 1 }}>
         <p>© 2025 LiquidSplit — Built for the Hackathon.</p>
       </motion.footer>
-      
-      {/* The conditional rendering for the modal is removed */}
     </div>
   );
 }
