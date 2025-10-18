@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useState } from 'react';
 
 // --- SVG Icons ---
 const CheckIcon = () => ( <svg className="w-6 h-6" style={{color: 'var(--success-color)'}} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> );
@@ -10,7 +11,15 @@ const SuccessIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </motion.svg>
 );
+const [addedMembers, setAddedMembers] = useState([]);
 
+const handleAddMember = () => {
+    const memberName = prompt("Enter the name of the member to add:");
+    if (memberName) {
+        setAddedMembers([...addedMembers, memberName]);
+        console.log(`${memberName} has been added to the group!`);
+    }
+}
 
 // --- Mock Server (No changes here) ---
 const mockSocketServer = {
@@ -155,6 +164,8 @@ function Demo() {
                                         {user.status === 'pending' && ( <button onClick={() => handlePay(user.id)} className="pay-btn-modern">Pay</button> )}
                                         {user.status === 'paying' && ( <button disabled className="pay-btn-modern processing flex items-center justify-center"><SpinnerIcon /></button> )}
                                         {user.status === 'paid' && <CheckIcon />}
+
+                                        <button className='add-people'>Add Members to Group</button>
                                     </div>
                                 ))}
                             </div>

@@ -210,6 +210,80 @@ body {
   text-decoration: none;
 }
 .back-link-modern:hover { color: var(--brand-secondary); text-decoration: underline; }
+.card{
+  background-color: black;
+  border: black solid 2px;
+  width: 500px;
+  height: 300px;
+}
+/* --- Card Container --- */
+.card-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    min-height: 100vh;
+    background-color: #f0f2f5;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* --- Debit Card Styling --- */
+.debit-card {
+    width: 350px;
+    height: 220px;
+    background: linear-gradient(135deg, #6d28d9, #4f46e5);
+    color: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-decoration: none; /* Removes underline from the link */
+}
+
+.debit-card:hover {
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* --- Card Elements --- */
+.card-chip {
+    width: 50px;
+    height: 40px;
+    background: linear-gradient(135deg, #d4af37, #b48a21);
+    border-radius: 6px;
+}
+
+.card-logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    align-self: flex-end;
+}
+
+.card-number {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+}
+
+.card-holder-info,
+.card-expiry-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+}
+
 
 .features-section {
   padding: 6rem 5%;
