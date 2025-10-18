@@ -17,7 +17,74 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-// Join a pot
+// Get pot details with members
+router.get("/:id", async (req, res, next) => {
+  try {
+    const potId = Number(req.params.id);
+    const pot = await prisma.pot.findUnique({
+      where: { id: potId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, email: true, balance: true },
+            },
+          },
+        },
+      },
+    });
+    
+    if (!pot) return res.status(404).json({ error: "Pot not found" });
+    
+    res.json(pot);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Add member to pot with ratio
+router.post("/:id/members", async (req, res, next) => {
+  try {
+    const potId = Number(req.params.id);
+    const { userId, share } = req.body;
+    const uid = Number(userId);
+    const shr = Number(share);
+
+    if (!Number.isFinite(uid) || !Number.isFinite(shr) || shr < 0 || shr > 1)
+      return res.status(400).json({ error: "Valid userId and share (0-100%) required" });
+
+    // Check if pot exists
+    const pot = await prisma.pot.findUnique({ where: { id: potId } });
+    if (!pot) return res.status(404).json({ error: "Pot not found" });
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: uid } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Check if user is already a member
+    const existing = await prisma.potMember.findUnique({
+      where: {
+        userId_potId: { userId: uid, potId: potId },
+      },
+    });
+    if (existing) return res.status(400).json({ error: "User already a member" });
+
+    const potMember = await prisma.potMember.create({
+      data: { userId: uid, potId: potId, share: shr },
+      include: {
+        user: {
+          select: { id: true, email: true, balance: true },
+        },
+      },
+    });
+    
+    res.json(potMember);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Join a pot (legacy endpoint - keeping for backwards compatibility)
 router.post("/:potId/join", async (req, res, next) => {
   try {
     const { potId } = req.params;
