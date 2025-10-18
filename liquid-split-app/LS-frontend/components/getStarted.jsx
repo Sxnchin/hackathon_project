@@ -23,13 +23,21 @@ function GetStarted() {
 
       const data = await res.json();
 
+      // ✅ Explicitly check for backend error response
       if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
+        throw new Error(data.error || "Registration failed. Please try again.");
       }
 
-      alert(`✅ Welcome ${data.user.name}!`);
+      // ✅ Success case only runs if backend returned 200 OK
+      alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
       console.log("User created:", data);
+
+      // ✅ Optional: clear the form
+      setEmail("");
+      setUsername("");
+      setPassword("");
     } catch (err) {
+      console.error("❌ Registration error:", err.message);
       alert(`❌ ${err.message}`);
     } finally {
       setLoading(false);
@@ -39,7 +47,10 @@ function GetStarted() {
   return (
     <section id="get-started" className="get-started-section">
       <h2>Get Started with LiquidSplit</h2>
-      <p>Ready to simplify your shared purchases? Getting started with LiquidSplit is easy!</p>
+      <p>
+        Ready to simplify your shared purchases? Getting started with LiquidSplit
+        is easy!
+      </p>
 
       <form onSubmit={handleSubmit}>
         <label htmlFor="username">Username:</label>
