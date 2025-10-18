@@ -164,3 +164,26 @@
   font-size: 0.95rem;
   margin-top: 4rem;
 }
+/* Subtle float animation for cards */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+.card:hover {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Smooth scrolling behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Slight overshoot bounce for buttons */
+.cta-btn {
+  transition: transform 0.3s cubic-bezier(0.28, 0.84, 0.42, 1);
+}
+.cta-btn:hover {
+  transform: scale(1.08);
+}
