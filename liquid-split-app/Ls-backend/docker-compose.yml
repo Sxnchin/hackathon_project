@@ -5,9 +5,9 @@ services:
     container_name: ls_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: liquid_split
+      POSTGRES_USER: ls_backend_user
+      POSTGRES_PASSWORD: ls_backend_pass
+      POSTGRES_DB: ls_backend_db
     ports:
       - "5432:5432"
     volumes:
