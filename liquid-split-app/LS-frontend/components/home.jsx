@@ -1,18 +1,9 @@
 // src/pages/Home.jsx
-import React, { useState } from "react"; // Import useState
+import React from "react";
 import { motion } from "framer-motion";
 import "../src/app.css";
 
-// 1. Import your modal components
-import Demo from './demo.jsx';
-import GetStarted from './getStarted.jsx';
-
-
 function Home() {
-  // 2. Add state to manage which modal is open
-  // null = none, 'demo' = show demo, 'getStarted' = show form
-  const [activeModal, setActiveModal] = useState(null);
-
   const fadeUp = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 80 } },
@@ -41,10 +32,9 @@ function Home() {
         <div className="nav-links">
           <a href="#how-it-works">How It Works</a>
           <a href="#features">Features</a>
-          {/* 3. Update navbar link to be a button that sets state */}
-          <button onClick={() => setActiveModal('getStarted')} className="get-started">
+          <a href="/get-started" className="get-started">
             Get Started
-          </button>
+          </a>
         </div>
       </motion.nav>
 
@@ -62,19 +52,18 @@ function Home() {
             The easiest way to co-own anything with friends. Split payments in
             real time — powered by LiquidSplit.
           </p>
-          {/* 4. Update hero button to set state onClick */}
-          <motion.button
-            onClick={() => setActiveModal('demo')}
+          <motion.a
+            href="/get-started"
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
             className="cta-btn"
           >
             Try the Demo
-          </motion.button>
+          </motion.a>
         </motion.div>
       </section>
 
-      {/* How It Works (no changes here) */}
+      {/* How It Works */}
       <section id="how-it-works" className="how-section">
         <motion.h2
           initial={{ opacity: 0, y: 40 }}
@@ -86,29 +75,59 @@ function Home() {
         </motion.h2>
 
         <div className="cards">
-          <motion.div className="card" variants={slideLeft} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+          <motion.div
+            className="card"
+            variants={slideLeft}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
             <h3>1. Checkout Anywhere</h3>
-            <p>Pay through LiquidSplit directly at any online checkout — no app switching, no waiting.</p>
+            <p>
+              Pay through LiquidSplit directly at any online checkout — no app
+              switching, no waiting.
+            </p>
           </motion.div>
-          <motion.div className="card" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+
+          <motion.div
+            className="card"
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
             <h3>2. Invite Friends</h3>
-            <p>Instantly invite your friends to join the purchase and claim their share.</p>
+            <p>
+              Instantly invite your friends to join the purchase and claim their
+              share.
+            </p>
           </motion.div>
-          <motion.div className="card" variants={slideRight} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+
+          <motion.div
+            className="card"
+            variants={slideRight}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+          >
             <h3>3. Everyone Owns</h3>
-            <p>Everyone gets a verified digital receipt showing exactly what they own.</p>
+            <p>
+              Everyone gets a verified digital receipt showing exactly what
+              they own.
+            </p>
           </motion.div>
         </div>
       </section>
 
-      {/* Footer (no changes here) */}
-      <motion.footer className="footer" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 1 }}>
+      {/* Footer */}
+      <motion.footer
+        className="footer"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
         <p>© 2025 LiquidSplit — Built for the Hackathon.</p>
       </motion.footer>
-      
-      {/* 5. Conditionally render the modals based on state */}
-      {activeModal === 'demo' && <Demo closeDemo={() => setActiveModal(null)} />}
-      {activeModal === 'getStarted' && <GetStarted closeForm={() => setActiveModal(null)} />}
     </div>
   );
 }

@@ -11,7 +11,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         {/* Delete this line */}
-        {/* <Route path="/get-started" element={<GetStarted />} /> */}
+        <Route path="/get-started" element={<GetStarted />} />
       </Routes>
     </Router>
   );
