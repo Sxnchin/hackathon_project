@@ -6,8 +6,10 @@ import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 import { PrismaClient } from "@prisma/client";
 
+
 import potRoutes from "./routes/pots.js";
 import authRoutes from "./routes/auth.js";
+import transactionsRoutes from "./routes/transactions.js";
 import { auth } from "./middleware/auth.js";
 
 dotenv.config();
@@ -68,8 +70,10 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.get("/health", (req, res) => res.send("💧 Ls-backend up and running!"));
 
 // ===== Routes =====
-app.use("/auth", authRoutes);       // public (register/login)
-app.use("/pots", auth, potRoutes);  // protected
+
+app.use("/auth", authRoutes);             // public (register/login)
+app.use("/pots", auth, potRoutes);        // protected
+app.use("/transactions", auth, transactionsRoutes); // protected
 
 // ===== 404 Handler =====
 app.use((req, res) => {
