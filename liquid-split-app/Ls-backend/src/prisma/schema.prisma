@@ -1,3 +1,6 @@
+// Prisma schema for LiquidSplit
+// Real-time fractional ownership of purchases
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,28 +10,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =====================
+// 👤 User Model
+// =====================
 model User {
-  id        Int       @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   name      String
-  email     String    @unique
-  balance   Float     @default(0)
-  pots      PotMember[]
-  createdAt DateTime  @default(now())
+  email     String      @unique
+  password  String      // bcrypt hashed password
+  balance   Float       @default(0)
+  pots      PotMember[] // pots user participates in
+  createdAt DateTime    @default(now())
 }
 
+// =====================
+// 💧 Pot Model
+// =====================
 model Pot {
   id          Int         @id @default(autoincrement())
   name        String
   totalAmount Float       @default(0)
-  members     PotMember[]
+  members     PotMember[] // relation through join table
   createdAt   DateTime    @default(now())
 }
 
+// =====================
+// 🤝 PotMember (Join Table)
+// =====================
 model PotMember {
   id        Int     @id @default(autoincrement())
   userId    Int
   potId     Int
   share     Float   @default(0)
-  user      User    @relation(fields: [userId], references: [id])
-  pot       Pot     @relation(fields: [potId], references: [id])
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+  pot  Pot  @relation(fields: [potId], references: [id])
+
+  @@unique([userId, potId]) // prevents duplicate entries
 }
