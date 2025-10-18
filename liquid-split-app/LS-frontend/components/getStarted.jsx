@@ -52,9 +52,12 @@ function GetStarted() {
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
         <div className="signup-header">
-          <h2 className="text-3xl font-bold text-gray-800">Create Your Account</h2>
+          <h2 className="text-3xl font-bold text-gray-800">
+            Create Your Account
+          </h2>
           <p className="text-gray-500 mt-2">
-            Join <span className="brand-name">LiquidSplit</span> and simplify shared purchases.
+            Join <span className="brand-name">LiquidSplit</span> and simplify
+            shared purchases.
           </p>
         </div>
 
@@ -110,12 +113,13 @@ function GetStarted() {
           )}
         </form>
 
-        <p className="text-center mt-6 text-gray-600">
+        <p className="text-center mt-10 text-gray-600">
           Already have an account?{" "}
           <Link to="/login" className="text-indigo-600 hover:underline">
             Log In
           </Link>
         </p>
+
         <Link to="/" className="back-link-modern">
           &larr; Back to Home
         </Link>
