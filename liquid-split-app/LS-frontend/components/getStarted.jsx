@@ -1,65 +1,126 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 function GetStarted() {
-  // Define state variables for form fields
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault(); 
-    console.log("Form submitted:", { email, username, password });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    // You could later connect this to a backend or API
-    alert(`Welcome ${username || "User"}! Your account setup has started.`);
+    try {
+      const res = await fetch("http://localhost:4000/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: username,
+          email,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed. Please try again.");
+      }
+
+      alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
+      setEmail("");
+      setUsername("");
+      setPassword("");
+    } catch (err) {
+      console.error("❌ Registration error:", err.message);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <section id="get-started" className="get-started-section">
-      <h2>Get Started with LiquidSplit</h2>
-      <p>Ready to simplify your shared purchases? Getting started with LiquidSplit is easy!</p>
+    <div className="signup-demo-bg">
+      <motion.div
+        className="signup-card-modern"
+        initial={{ opacity: 0, scale: 0.95, y: -20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <div className="signup-header">
+          <h2 className="text-3xl font-bold text-gray-800">Create Your Account</h2>
+          <p className="text-gray-500 mt-2">
+            Join <span className="brand-name">LiquidSplit</span> and simplify shared purchases.
+          </p>
+        </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* Username */}
-        <label htmlFor="username">Username:</label>
-        <input
-          type="text"
-          id="username"
-          name="username"
-          placeholder="Enter your username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
+        <form onSubmit={handleSubmit} className="signup-form-modern">
+          <label htmlFor="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            placeholder="Your username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
 
-        {/* Email */}
-        <label htmlFor="email">Email:</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+          <label htmlFor="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        {/* Password */}
-        <label htmlFor="password">Password:</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          placeholder="Create a password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <label htmlFor="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button type="submit">Get Started</button>
-      </form>
-    </section>
+          <motion.button
+            type="submit"
+            className="signup-btn-modern"
+            disabled={loading}
+            whileHover={{ scale: loading ? 1 : 1.05 }}
+            whileTap={{ scale: loading ? 1 : 0.97 }}
+          >
+            {loading ? "Creating..." : "Sign Up"}
+          </motion.button>
+
+          {error && (
+            <motion.p
+              className="signup-error-modern"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {error}
+            </motion.p>
+          )}
+        </form>
+
+        <p className="text-center mt-6 text-gray-600">
+          Already have an account?{" "}
+          <Link to="/login" className="text-indigo-600 hover:underline">
+            Log In
+          </Link>
+        </p>
+        <Link to="/" className="back-link-modern">
+          &larr; Back to Home
+        </Link>
+      </motion.div>
+    </div>
   );
 }
 
