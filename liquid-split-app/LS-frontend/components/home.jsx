@@ -1,18 +1,9 @@
-// src/pages/Home.jsx
-import React, { useState } from "react"; // Import useState
+import React from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import "../src/app.css";
 
-// 1. Import your modal components
-import Demo from './demo.jsx';
-import GetStarted from './getStarted.jsx';
-
-
 function Home() {
-  // 2. Add state to manage which modal is open
-  // null = none, 'demo' = show demo, 'getStarted' = show form
-  const [activeModal, setActiveModal] = useState(null);
-
   const fadeUp = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 80 } },
@@ -32,19 +23,22 @@ function Home() {
     <div className="app-container">
       {/* Navbar */}
       <motion.nav
-        className="navbar"
-        initial={{ y: -50, opacity: 0 }}
+        className="navbar" // ✅ FIX: Added the className to apply flexbox styles
+        initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
+        transition={{ type: "spring", stiffness: 90, delay: 0.2 }}
       >
         <div className="nav-logo">LiquidSplit</div>
+        {/* ✅ FIX: Consolidated all links into one container for proper alignment */}
         <div className="nav-links">
           <a href="#how-it-works">How It Works</a>
           <a href="#features">Features</a>
-          {/* 3. Update navbar link to be a button that sets state */}
-          <button onClick={() => setActiveModal('getStarted')} className="get-started">
+          <Link to="/get-started" className="get-started">
             Get Started
-          </button>
+          </Link>
+          <Link to="/login" className="get-started">
+            Login
+          </Link>
         </div>
       </motion.nav>
 
@@ -62,19 +56,13 @@ function Home() {
             The easiest way to co-own anything with friends. Split payments in
             real time — powered by LiquidSplit.
           </p>
-          {/* 4. Update hero button to set state onClick */}
-          <motion.button
-            onClick={() => setActiveModal('demo')}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.95 }}
-            className="cta-btn"
-          >
+          <Link to="/demo" className="cta-btn">
             Try the Demo
-          </motion.button>
+          </Link>
         </motion.div>
       </section>
 
-      {/* How It Works (no changes here) */}
+      {/* How It Works Section */}
       <section id="how-it-works" className="how-section">
         <motion.h2
           initial={{ opacity: 0, y: 40 }}
@@ -84,7 +72,6 @@ function Home() {
         >
           How It Works
         </motion.h2>
-
         <div className="cards">
           <motion.div className="card" variants={slideLeft} initial="hidden" whileInView="visible" viewport={{ once: true }}>
             <h3>1. Checkout Anywhere</h3>
@@ -101,14 +88,10 @@ function Home() {
         </div>
       </section>
 
-      {/* Footer (no changes here) */}
+      {/* Footer */}
       <motion.footer className="footer" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 1 }}>
         <p>© 2025 LiquidSplit — Built for the Hackathon.</p>
       </motion.footer>
-      
-      {/* 5. Conditionally render the modals based on state */}
-      {activeModal === 'demo' && <Demo closeDemo={() => setActiveModal(null)} />}
-      {activeModal === 'getStarted' && <GetStarted closeForm={() => setActiveModal(null)} />}
     </div>
   );
 }

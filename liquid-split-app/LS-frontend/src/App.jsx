@@ -1,17 +1,17 @@
-// src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "../components/home";
-// Remove this import, it's not needed here anymore
-// import GetStarted from "../components/getStarted"; 
-
+import GetStarted from "../components/getStarted";
+import Demo from "../components/demo"; // 1. Import the Demo component
+import Login from "../components/login";
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        {/* Delete this line */}
-        {/* <Route path="/get-started" element={<GetStarted />} /> */}
+        <Route path="/get-started" element={<GetStarted />} />
+        <Route path="/demo" element={<Demo />} /> {/* 2. Add the new route for the demo page */}
+        <Route path="/login" element={<Login />} />
       </Routes>
     </Router>
   );
