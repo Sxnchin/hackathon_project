@@ -75,7 +75,6 @@ app.use("/pots", auth, potRoutes);  // protected
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
-
 // ===== Central Error Handler =====
 app.use((err, req, res, next) => {
   console.error("🔥 Error:", err);
