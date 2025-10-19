@@ -88,4 +88,82 @@ export async function stripeWebhook(req, res) {
   }
 }
 
+// POST /stripe/onboard — create Stripe Connect onboarding link
+router.post("/onboard", async (req, res) => {
+  try {
+    // Accept userId (or accountId) from frontend
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+    // Find or create Stripe account for user
+    let user = await prisma.user.findUnique({ where: { id: Number(userId) } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Store stripeAccountId in user table (add field if needed)
+    // For demo, create a new account every time
+    const account = await stripe.accounts.create({
+      type: "express",
+      country: "US",
+      email: user.email,
+      capabilities: { transfers: { requested: true } },
+    });
+
+    // Generate onboarding link
+    const accountLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: process.env.STRIPE_ONBOARD_REFRESH_URL,
+      return_url: process.env.STRIPE_ONBOARD_RETURN_URL,
+      type: "account_onboarding",
+    });
+
+    // Optionally save account.id to user
+    // await prisma.user.update({ where: { id: user.id }, data: { stripeAccountId: account.id } });
+
+    res.json({ url: accountLink.url });
+  } catch (err) {
+    console.error("Stripe onboard error:", err);
+    res.status(500).json({ error: "Failed to create onboarding link" });
+  }
+});
+
+// POST /stripe/charge — create split payments
+router.post("/charge", async (req, res) => {
+  try {
+    // Accept: potId, amount, description, payerUserIds (array)
+    const { potId, amount, description, payerUserIds } = req.body;
+    if (!potId || !amount || !Array.isArray(payerUserIds) || payerUserIds.length === 0)
+      return res.status(400).json({ error: "potId, amount, payerUserIds required" });
+
+    // Get pot members and shares
+    const pot = await prisma.pot.findUnique({
+      where: { id: Number(potId) },
+      include: { members: true },
+    });
+    if (!pot) return res.status(404).json({ error: "Pot not found" });
+
+    // For each payer, create a PaymentIntent for their share
+    const paymentIntents = [];
+    for (const member of pot.members) {
+      if (!payerUserIds.includes(member.userId)) continue;
+      const shareAmount = Math.round(amount * member.share * 100); // cents
+      if (shareAmount <= 0) continue;
+      const user = await prisma.user.findUnique({ where: { id: member.userId } });
+      if (!user) continue;
+      const pi = await stripe.paymentIntents.create({
+        amount: shareAmount,
+        currency: "usd",
+        description: description || `Split payment for pot ${potId}`,
+        metadata: { potId: potId, userId: member.userId },
+        receipt_email: user.email,
+      });
+      paymentIntents.push({ userId: member.userId, paymentIntentId: pi.id, clientSecret: pi.client_secret });
+    }
+
+    res.json({ paymentIntents });
+  } catch (err) {
+    console.error("Stripe charge error:", err);
+    res.status(500).json({ error: "Failed to create split payments" });
+  }
+});
+
 export default router;
