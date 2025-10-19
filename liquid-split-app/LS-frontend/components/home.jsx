@@ -35,25 +35,7 @@ function Home() {
 
   return (
     <div className="app-container">
-      {/* Navbar */}
-      <motion.nav
-        className="navbar"
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 90, delay: 0.2 }}
-      >
-        <div className="nav-logo">LiquidSplit</div>
-        <div className="nav-links">
-          <a href="#how-it-works">How It Works</a>
-          <a href="#features">Features</a>
-          <Link to="/get-started" className="get-started">
-            Get Started
-          </Link>
-          <Link to="/login" className="get-started">
-            Login
-          </Link>
-        </div>
-      </motion.nav>
+      {/* Navbar is provided globally by the Nav component in App.jsx */}
 
       {/* Hero Section */}
 

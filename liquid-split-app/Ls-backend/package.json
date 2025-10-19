@@ -6,6 +6,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node src/seed.js",
+    "clear:users": "node src/clearUsers.js",
     "generate": "prisma generate --schema src/prisma/schema.prisma",
     "migrate": "prisma migrate dev --schema src/prisma/schema.prisma"
   },
