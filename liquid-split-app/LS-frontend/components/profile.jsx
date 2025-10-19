@@ -66,6 +66,26 @@ function Profile() {
     setTimeout(() => setShowNotif(false), 2000);
   };
 
+  // Handler for Stripe Connect onboarding
+  const handleConnectStripe = async () => {
+    if (!user?.id) return alert('User not found. Please log in.');
+    try {
+      const res = await fetch('http://localhost:4000/stripe/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.open(data.url, '_blank', 'noopener');
+      } else {
+        alert(data.error || 'Could not start Stripe onboarding');
+      }
+    } catch (err) {
+      alert('Error connecting to Stripe.');
+    }
+  };
+
   return (
     <div className="login-demo-bg">
       <motion.div
@@ -99,15 +119,26 @@ function Profile() {
         </form>
         <div style={{marginTop: "1rem", fontWeight: "bold"}}>Current Balance: ${balance}</div>
         {user && (
-          <motion.button
-            className="login-btn-modern"
-            style={{marginTop: '1rem', background: '#2563eb'}}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={handleConnectPlaid}
-          >
-            Connect Plaid
-          </motion.button>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
+            <motion.button
+              className="login-btn-modern"
+              style={{ background: '#2563eb' }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleConnectPlaid}
+            >
+              Connect Plaid
+            </motion.button>
+            <motion.button
+              className="login-btn-modern"
+              style={{ background: '#635bff' }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleConnectStripe}
+            >
+              Connect Stripe
+            </motion.button>
+          </div>
         )}
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
           <Link to="/demo" className="back-link-modern">Go to Demo</Link>
