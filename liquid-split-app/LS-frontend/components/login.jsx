@@ -1,13 +1,18 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // 👇 This checks if user came from a protected page like /demo
+  const from = location.state?.from?.pathname || "/demo";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,11 +32,14 @@ function Login() {
         throw new Error(data.error || "Login failed. Please try again.");
       }
 
+      // ✅ Save token + user info
       localStorage.setItem("liquidSplitToken", data.token);
       localStorage.setItem("liquidSplitUser", JSON.stringify(data.user));
 
       alert(`✅ Welcome back, ${data.user.name}!`);
-      navigate("/demo");
+
+      // 👇 Redirect them to the page they were trying to access (e.g., /demo)
+      navigate(from, { replace: true });
     } catch (err) {
       console.error("Login error:", err.message);
       setError(err.message);
