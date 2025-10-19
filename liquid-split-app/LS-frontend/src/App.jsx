@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 // ✅ Capitalized imports (match your actual filenames exactly)
 import Home from "../components/Home";
 import GetStarted from "../components/GetStarted";
-import Demo from "../components/Demo";
+import Demo from "../components/demo";
 import Login from "../components/Login";
 
 function App() {

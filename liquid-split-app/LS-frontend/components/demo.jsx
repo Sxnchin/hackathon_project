@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { useState } from 'react';
 
 // --- SVG Icons ---
 const CheckIcon = () => ( <svg className="w-6 h-6" style={{color: 'var(--success-color)'}} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> );
@@ -11,15 +10,7 @@ const SuccessIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </motion.svg>
 );
-const [addedMembers, setAddedMembers] = useState([]);
-
-const handleAddMember = () => {
-    const memberName = prompt("Enter the name of the member to add:");
-    if (memberName) {
-        setAddedMembers([...addedMembers, memberName]);
-        console.log(`${memberName} has been added to the group!`);
-    }
-}
+// moved into component body to avoid invalid Hook call
 
 // --- Mock Server (No changes here) ---
 const mockSocketServer = {
@@ -60,6 +51,14 @@ const mockSocketServer = {
 
 // --- React Component ---
 function Demo() {
+    const [addedMembers, setAddedMembers] = useState([]);
+    const handleAddMember = () => {
+        const memberName = prompt("Enter the name of the member to add:");
+        if (memberName) {
+            setAddedMembers(prev => [...prev, memberName]);
+            console.log(`${memberName} has been added to the group!`);
+        }
+    };
     const [splitState, setSplitState] = useState(null);
     const [receipts, setReceipts] = useState([]);
     const [isSplitting, setIsSplitting] = useState(false);
@@ -96,8 +95,9 @@ function Demo() {
         }
     };
     
-    const paidCount = splitState?.participants.filter(p => p.status === 'paid').length || 0;
-    const totalCount = splitState?.participants.length || 0;
+    const participants = splitState?.participants ?? [];
+    const paidCount = participants.filter(p => p.status === 'paid').length || 0;
+    const totalCount = participants.length || 0;
     const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
 
     let actionContent;
@@ -157,7 +157,7 @@ function Demo() {
                         <div className="participants-section">
                             <h4>Participants</h4>
                             <div className="space-y-3">
-                                {splitState?.participants.map((user) => (
+                                {participants.map((user) => (
                                     <div key={user.id} className="participant-row-modern">
                                         <span className="font-medium text-gray-700">{user.name}</span>
                                         <span className="text-gray-600 font-semibold">${user.share.toFixed(2)}</span>
@@ -165,7 +165,7 @@ function Demo() {
                                         {user.status === 'paying' && ( <button disabled className="pay-btn-modern processing flex items-center justify-center"><SpinnerIcon /></button> )}
                                         {user.status === 'paid' && <CheckIcon />}
 
-                                        <button className='add-people'>Add Members to Group</button>
+                                        <button className='add-people' onClick={handleAddMember}>Add Members to Group</button>
                                     </div>
                                 ))}
                             </div>
