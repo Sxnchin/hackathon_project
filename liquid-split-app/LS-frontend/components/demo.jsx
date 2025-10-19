@@ -158,42 +158,64 @@ function Demo() {
     setIsSplitting(true);
   };
 
+
+  // Unified handlePay: supports Duo auth for user 1, backend sync for all
   const handlePay = (userId) => {
     const user = splitState?.participants?.find((p) => p.id === userId);
     if (!user || user.status !== 'pending') return;
+    // If user 1, show Duo popup
     if (user.id === 1) {
       setPendingUser(userId);
       setShowDuo(true);
-    } else {
-      mockSocketServer.emit('user-paid', { userId });
+      return;
     }
+    // Otherwise, run backend sync and mark as paying
+    const newParticipants = splitState.participants.map((p) =>
+      p.id === userId ? { ...p, status: 'paying' } : p
+    );
+    setSplitState({ ...splitState, participants: newParticipants });
+    setTimeout(async () => {
+      const n = splitState.participants.length;
+      try {
+        const payer = seededUsers.find(u => u.id === userId);
+        const participant = splitState.participants.find(p => p.id === userId) || participants.find(p => p.id === userId);
+        const share = participant?.share || 0;
+        if (payer) {
+          const newBalance = Number(payer.balance || 0) - Number(share || 0);
+          const res = await fetch('http://localhost:4000/auth/set-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: payer.email, name: payer.name, balance: newBalance }),
+          });
+          const data = await res.json();
+          if (res.ok && data.user) {
+            setSeededUsers((prev) => prev.map(u => u.id === data.user.id ? data.user : u));
+            if (currentUser && currentUser.email === data.user.email) {
+              login(localStorage.getItem('liquidSplitToken'), data.user);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not update payer balance', err);
+      }
+      mockSocketServer.emit('user-paid', { userId, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
+    }, 1500);
   };
 
+  // Approve Duo: backend sync and mark as paid
   const approveDuo = () => {
     setShowDuo(false);
     if (pendingUser) {
-      mockSocketServer.emit('user-paid', { userId: pendingUser });
-      setPendingUser(null);
-    }
-  };
-
-  const handlePay = (userId) => {
-    if (!splitState || !splitState.participants) return;
-    const user = splitState.participants.find((p) => p.id === userId);
-    if (user && user.status === 'pending') {
+      // Mark as paying, then backend sync
       const newParticipants = splitState.participants.map((p) =>
-        p.id === userId ? { ...p, status: 'paying' } : p
+        p.id === pendingUser ? { ...p, status: 'paying' } : p
       );
       setSplitState({ ...splitState, participants: newParticipants });
-      // Simulate network delay before confirming payment.
       setTimeout(async () => {
-        // Calculate dynamic ownership
         const n = splitState.participants.length;
-
-        // Update backend balance for this payer (demo behavior)
         try {
-          const payer = seededUsers.find(u => u.id === userId);
-          const participant = splitState.participants.find(p => p.id === userId) || participants.find(p => p.id === userId);
+          const payer = seededUsers.find(u => u.id === pendingUser);
+          const participant = splitState.participants.find(p => p.id === pendingUser) || participants.find(p => p.id === pendingUser);
           const share = participant?.share || 0;
           if (payer) {
             const newBalance = Number(payer.balance || 0) - Number(share || 0);
@@ -204,9 +226,7 @@ function Demo() {
             });
             const data = await res.json();
             if (res.ok && data.user) {
-              // Update local seeded list
               setSeededUsers((prev) => prev.map(u => u.id === data.user.id ? data.user : u));
-              // If the payer is the logged in user, update auth context so Profile updates
               if (currentUser && currentUser.email === data.user.email) {
                 login(localStorage.getItem('liquidSplitToken'), data.user);
               }
@@ -215,8 +235,8 @@ function Demo() {
         } catch (err) {
           console.warn('Could not update payer balance', err);
         }
-
-        mockSocketServer.emit('user-paid', { userId, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
+        mockSocketServer.emit('user-paid', { userId: pendingUser, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
+        setPendingUser(null);
       }, 1500);
     }
   };
@@ -227,7 +247,7 @@ function Demo() {
     alert("Authentication timed out or denied.");
   };
 
-  const participants = splitState?.participants || [];    
+  // participants is always splitState?.participants || [] below
   const liveParticipants = isSplitting ? (splitState?.participants ?? []) : participants;
   const paidCount = isSplitting ? liveParticipants.filter(p => p.status === 'paid').length || 0 : 0;
   const totalCount = liveParticipants.length || 0;
