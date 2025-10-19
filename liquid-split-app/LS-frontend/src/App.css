@@ -1,3 +1,47 @@
+/* Modern Action Buttons for Demo Page */
+.action-btn-modern {
+  background-image: linear-gradient(to right, var(--brand-primary), var(--brand-secondary));
+  color: white;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
+  transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  outline: none;
+}
+
+.action-btn-modern:hover {
+  background-position: right center;
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.18);
+}
+
+/* Vertical stack for the action buttons */
+.action-btn-group-modern {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Make buttons consistent size */
+.action-btn-modern {
+  min-width: 220px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Place the add member button under the participant info and center it */
+.participant-row-modern .add-people {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: 0.5rem;
+}
 /* --- Global Styles & Variables --- */
 :root {
   --brand-primary: #4f46e5;
@@ -529,4 +573,28 @@ body {
   font-size: 0.95rem;
   color: var(--text-secondary);
   line-height: 1.5;
+}
+
+/* Notification */
+.onboard-success {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+}
+
+.notification {
+  margin: auto;
+  max-width: 520px;
+  background: white;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.notification h2 {
+  color: var(--brand-primary);
+  margin-bottom: 0.5rem;
 }

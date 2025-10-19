@@ -1,13 +1,18 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
+  // Create hashed password for demo users
+  const defaultPassword = "password123";
+  const hashed = await bcrypt.hash(defaultPassword, 10);
   await prisma.user.createMany({
     data: [
-      { name: "Sanchin", email: "sanchin@example.com", balance: 120 },
-      { name: "Chris", email: "chris@example.com", balance: 80 },
-      { name: "Shaunak", email: "shaunak@example.com", balance: 50 },
+      { name: "Sanchin", email: "sanchin@example.com", password: hashed, balance: 120 },
+      { name: "Chris", email: "chris@example.com", password: hashed, balance: 180 },
+      { name: "Shaunak", email: "shaunak@example.com", password: hashed, balance: 50000 },
     ],
+    skipDuplicates: true,
   });
 
   await prisma.pot.create({

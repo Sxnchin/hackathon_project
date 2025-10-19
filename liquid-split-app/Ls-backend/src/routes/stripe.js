@@ -99,14 +99,22 @@ router.post("/onboard", async (req, res) => {
     let user = await prisma.user.findUnique({ where: { id: Number(userId) } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Store stripeAccountId in user table (add field if needed)
-    // For demo, create a new account every time
-    const account = await stripe.accounts.create({
+    // If user already has a connected account, reuse it
+    let account;
+    if (user.stripeAccountId) {
+      account = await stripe.accounts.retrieve(user.stripeAccountId);
+    } else {
+      // For demo, create a new account and save it to the user
+      account = await stripe.accounts.create({
       type: "express",
       country: "US",
       email: user.email,
       capabilities: { transfers: { requested: true } },
-    });
+      });
+
+      // Save connected account id on user record
+      await prisma.user.update({ where: { id: user.id }, data: { stripeAccountId: account.id } });
+    }
 
     // Generate onboarding link
     const accountLink = await stripe.accountLinks.create({
@@ -116,8 +124,7 @@ router.post("/onboard", async (req, res) => {
       type: "account_onboarding",
     });
 
-    // Optionally save account.id to user
-    // await prisma.user.update({ where: { id: user.id }, data: { stripeAccountId: account.id } });
+  // Optionally return account id
 
     res.json({ url: accountLink.url });
   } catch (err) {
@@ -125,6 +132,19 @@ router.post("/onboard", async (req, res) => {
     res.status(500).json({ error: "Failed to create onboarding link" });
   }
 });
+
+    // GET /stripe/account/:userId - get user and connected account id
+    router.get('/account/:userId', async (req, res) => {
+      try {
+        const userId = Number(req.params.userId);
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json({ id: user.id, name: user.name, email: user.email, stripeAccountId: user.stripeAccountId });
+      } catch (err) {
+        console.error('Error fetching user account:', err);
+        res.status(500).json({ error: 'Failed to fetch user' });
+      }
+    });
 
 // POST /stripe/charge — create split payments
 router.post("/charge", async (req, res) => {

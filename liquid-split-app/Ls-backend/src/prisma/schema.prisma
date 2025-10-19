@@ -19,6 +19,7 @@ model User {
   email     String      @unique
   password  String      // bcrypt hashed password
   balance   Float       @default(0)
+  stripeAccountId String? @unique
   pots      PotMember[] // pots user participates in
   createdAt DateTime    @default(now())
 }

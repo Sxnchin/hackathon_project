@@ -14,7 +14,7 @@ router.post("/", async (req, res, next) => {
     res.json(newPot);
   } catch (err) {
     next(err);
-  }
+  } 
 });
 
 // Get pot details with members

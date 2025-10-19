@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "../components/Home";
 import GetStarted from "../components/GetStarted";
 import Demo from "../components/demo";
+import OnboardSuccess from "../components/onboardSuccess";
 import Login from "../components/Login";
 
 function App() {
@@ -17,8 +18,11 @@ function App() {
         {/* 📝 Sign Up Page */}
         <Route path="/get-started" element={<GetStarted />} />
 
-        {/* 💳 Demo Page */}
-        <Route path="/demo" element={<Demo />} />
+  {/* 💳 Demo Page */}
+  <Route path="/demo" element={<Demo />} />
+
+  {/* Stripe Onboarding return */}
+  <Route path="/onboard/success" element={<OnboardSuccess />} />
 
         {/* 🔐 Login Page */}
         <Route path="/login" element={<Login />} />
