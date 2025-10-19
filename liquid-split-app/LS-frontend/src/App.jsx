@@ -2,16 +2,21 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // ✅ Capitalized imports (match your actual filenames exactly)
+import Nav from "../components/nav";
 import Home from "../components/Home";
 import GetStarted from "../components/GetStarted";
 import Demo from "../components/demo";
 import OnboardSuccess from "../components/onboardSuccess";
 import Login from "../components/Login";
+import Profile from "../components/profile";
+import { AuthProvider } from "./utils/authContext";
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <AuthProvider>
+      <Router>
+        <Nav />
+        <Routes>
         {/* 🏠 Homepage */}
         <Route path="/" element={<Home />} />
 
@@ -26,8 +31,10 @@ function App() {
 
         {/* 🔐 Login Page */}
         <Route path="/login" element={<Login />} />
-      </Routes>
-    </Router>
+        <Route path="/profile" element={<Profile />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

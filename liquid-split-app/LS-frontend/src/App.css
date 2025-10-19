@@ -598,6 +598,21 @@ body {
   color: var(--brand-primary);
   margin-bottom: 0.5rem;
 }
+.connect-bank-btn {
+  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  color: white;
+  font-weight: 600;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.connect-bank-btn:hover {
+  transform: scale(1.05);
+  background: linear-gradient(90deg, #4338ca, #6d28d9);
+}
 .duo-overlay {
   position: fixed;
   top: 0;

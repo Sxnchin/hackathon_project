@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from "../src/utils/authContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 
@@ -118,6 +119,11 @@ const DuoAuthPopup = ({ onApprove, onCancel, ttl = 60}) => {
 
 /* ---------- MAIN DEMO COMPONENT ---------- */
 function Demo() {
+  const { user: currentUser, login } = useAuth();
+  // Seeded users - will fetch from backend for demo
+  const [seededUsers, setSeededUsers] = useState([]);
+  // Participants state (before split starts)
+  const [participants, setParticipants] = useState([]);
   const [splitState, setSplitState] = useState(null);
   const [receipts, setReceipts] = useState([]);
   const [isSplitting, setIsSplitting] = useState(false);
@@ -126,6 +132,17 @@ function Demo() {
   const [pendingUser, setPendingUser] = useState(null);
 
   useEffect(() => {
+    // fetch users from backend
+    (async () => {
+      try {
+        const res = await fetch('http://localhost:4000/auth/users');
+        const data = await res.json();
+        if (res.ok) setSeededUsers(data.users || []);
+      } catch (err) {
+        console.warn('Could not fetch users', err);
+      }
+    })();
+
     if (isSplitting) {
       mockSocketServer.on('update-split-status', (newState) => setSplitState(newState));
       mockSocketServer.on('split-complete', (data) => {
@@ -160,15 +177,60 @@ function Demo() {
     }
   };
 
+  const handlePay = (userId) => {
+    if (!splitState || !splitState.participants) return;
+    const user = splitState.participants.find((p) => p.id === userId);
+    if (user && user.status === 'pending') {
+      const newParticipants = splitState.participants.map((p) =>
+        p.id === userId ? { ...p, status: 'paying' } : p
+      );
+      setSplitState({ ...splitState, participants: newParticipants });
+      // Simulate network delay before confirming payment.
+      setTimeout(async () => {
+        // Calculate dynamic ownership
+        const n = splitState.participants.length;
+
+        // Update backend balance for this payer (demo behavior)
+        try {
+          const payer = seededUsers.find(u => u.id === userId);
+          const participant = splitState.participants.find(p => p.id === userId) || participants.find(p => p.id === userId);
+          const share = participant?.share || 0;
+          if (payer) {
+            const newBalance = Number(payer.balance || 0) - Number(share || 0);
+            const res = await fetch('http://localhost:4000/auth/set-balance', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: payer.email, name: payer.name, balance: newBalance }),
+            });
+            const data = await res.json();
+            if (res.ok && data.user) {
+              // Update local seeded list
+              setSeededUsers((prev) => prev.map(u => u.id === data.user.id ? data.user : u));
+              // If the payer is the logged in user, update auth context so Profile updates
+              if (currentUser && currentUser.email === data.user.email) {
+                login(localStorage.getItem('liquidSplitToken'), data.user);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Could not update payer balance', err);
+        }
+
+        mockSocketServer.emit('user-paid', { userId, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
+      }, 1500);
+    }
+  };
+
   const cancelDuo = () => {
     setShowDuo(false);
     setPendingUser(null);
     alert("Authentication timed out or denied.");
   };
 
-  const participants = splitState?.participants || [];
-  const paidCount = participants.filter((p) => p.status === 'paid').length;
-  const totalCount = participants.length;
+  const participants = splitState?.participants || [];    
+  const liveParticipants = isSplitting ? (splitState?.participants ?? []) : participants;
+  const paidCount = isSplitting ? liveParticipants.filter(p => p.status === 'paid').length || 0 : 0;
+  const totalCount = liveParticipants.length || 0;
   const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
 
   return (
