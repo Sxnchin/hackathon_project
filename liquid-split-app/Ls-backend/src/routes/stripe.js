@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config(); // ✅ must come before using process.env
+
 import express from "express";
 import Stripe from "stripe";
 import { PrismaClient } from "@prisma/client";
@@ -6,12 +9,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// Optional: simple ping to confirm router is mounted
+// ===== Simple Ping Route =====
 router.get("/ping", (req, res) => res.json({ ok: true }));
 
-// ===== Webhook handler (must receive raw body) =====
+// ===== Webhook Handler =====
 export async function stripeWebhook(req, res) {
-  console.log("Webhook called, typeof req.body:", typeof req.body, "length:", req.body.length);
+  console.log("🔔 Stripe webhook received:", req.headers["stripe-signature"] ? "signature present" : "no signature");
+
   const sig = req.headers["stripe-signature"];
   if (!process.env.STRIPE_WEBHOOK_SECRET) {
     return res.status(500).json({ error: "Missing STRIPE_WEBHOOK_SECRET" });
@@ -25,7 +29,7 @@ export async function stripeWebhook(req, res) {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
+    console.error("❌ Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -38,7 +42,6 @@ export async function stripeWebhook(req, res) {
         const totalCents = pi.amount_received ?? pi.amount;
 
         if (Number.isFinite(txId)) {
-          // Mark transaction executed (idempotent)
           await prisma.transaction
             .update({
               where: { id: txId },
@@ -48,7 +51,6 @@ export async function stripeWebhook(req, res) {
         }
 
         if (Number.isFinite(potId) && Number.isFinite(totalCents)) {
-          // Increment pot total by dollars (assuming totalAmount is in dollars)
           await prisma.pot
             .update({
               where: { id: potId },
@@ -77,7 +79,7 @@ export async function stripeWebhook(req, res) {
       }
 
       default:
-        console.log("ℹ️ Unhandled event:", event.type);
+        console.log("ℹ️ Unhandled event type:", event.type);
         break;
     }
 
@@ -87,5 +89,27 @@ export async function stripeWebhook(req, res) {
     return res.status(500).json({ error: "Webhook processing failed" });
   }
 }
+
+// ===== Create Payment Intent =====
+router.post("/create-payment-intent", async (req, res) => {
+  try {
+    const { amount, potId, transactionId } = req.body;
+
+    if (!amount || !potId || !transactionId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // convert dollars to cents
+      currency: "usd",
+      metadata: { potId, transactionId },
+    });
+
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    console.error("🔥 Stripe PaymentIntent error:", err);
+    res.status(500).json({ error: "Failed to create payment intent" });
+  }
+});
 
 export default router;

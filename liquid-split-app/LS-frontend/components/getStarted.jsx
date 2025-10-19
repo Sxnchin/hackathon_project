@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function GetStarted() {
   const [email, setEmail] = useState("");
@@ -8,6 +8,7 @@ function GetStarted() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate(); // ✅ navigation hook
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,6 +33,17 @@ function GetStarted() {
       }
 
       alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
+
+      // Optional: save token or user info if your backend returns it
+      if (data.token) {
+        localStorage.setItem("liquidSplitToken", data.token);
+        localStorage.setItem("liquidSplitUser", JSON.stringify(data.user));
+      }
+
+      // 👇 Redirect to the demo page after successful registration
+      navigate("/demo");
+
+      // Reset fields after success
       setEmail("");
       setUsername("");
       setPassword("");

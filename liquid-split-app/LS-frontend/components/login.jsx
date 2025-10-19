@@ -31,7 +31,7 @@ function Login() {
       localStorage.setItem("liquidSplitUser", JSON.stringify(data.user));
 
       alert(`✅ Welcome back, ${data.user.name}!`);
-      navigate("/");
+      navigate("/demo");
     } catch (err) {
       console.error("Login error:", err.message);
       setError(err.message);
