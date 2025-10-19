@@ -198,15 +198,15 @@ function Demo() {
   const handleStartSplit = () => {
     // When split starts, auto-pay all except current user, who gets Duo popup
     if (participants.length === 0) return alert("Add at least one participant!");
-  // If user is not logged in, pick the first participant as the pending payer
-  const pendingId = currentUser?.id ?? (participants[0]?.id ?? null);
-  const initial = recalcShares(participants).map(p => ({ ...p, status: p.id === pendingId ? 'pending' : 'paid' }));
+    // If user is logged in, use their id; otherwise, use the first participant's id
+    const pendingId = currentUser?.id ?? (participants.length > 0 ? participants[0].id : null);
+    const initial = recalcShares(participants).map(p => ({ ...p, status: p.id === pendingId ? 'pending' : 'paid' }));
     // Update the mock server state first so emits find participants
     mockSocketServer.state.participants = initial;
     mockSocketServer.state.totalAmount = TOTAL_AMOUNT;
     setSplitState({ totalAmount: TOTAL_AMOUNT, participants: initial });
-  setIsSplitting(true);
-  console.debug('[Demo] handleStartSplit', { initial, pendingId });
+    setIsSplitting(true);
+    console.debug('[Demo] handleStartSplit', { initial, pendingId });
     // If there are others, auto-pay them
     initial.forEach(p => {
       if (p.id !== pendingId) {
@@ -215,7 +215,7 @@ function Demo() {
         }, 500);
       }
     });
-    // For current user, show Duo popup if present
+    // For pending payer, show Duo popup if present
     if (pendingId) {
       setPendingUser(pendingId);
       setShowDuo(true);
