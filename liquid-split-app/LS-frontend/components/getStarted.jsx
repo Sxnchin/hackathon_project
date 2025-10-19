@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../src/utils/authContext";
 
 function GetStarted() {
   const [email, setEmail] = useState("");
@@ -9,6 +10,7 @@ function GetStarted() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate(); // ✅ navigation hook
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,12 +38,12 @@ function GetStarted() {
 
       // Optional: save token or user info if your backend returns it
       if (data.token) {
-        localStorage.setItem("liquidSplitToken", data.token);
-        localStorage.setItem("liquidSplitUser", JSON.stringify(data.user));
+        // update auth context so navbar updates immediately
+        login(data.token, data.user);
       }
 
-      // 👇 Redirect to the demo page after successful registration
-      navigate("/demo");
+      // 👇 Redirect to the profile page after successful registration
+      navigate("/profile");
 
       // Reset fields after success
       setEmail("");

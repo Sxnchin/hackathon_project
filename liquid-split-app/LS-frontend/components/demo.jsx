@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from "../src/utils/authContext";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 
@@ -122,12 +123,9 @@ const mockSocketServer = {
 
 // --- React Component ---
 function Demo() {
-  // Seeded users
-  const seededUsers = [
-    { id: 1, name: "Sanchin", email: "sanchin@example.com" },
-    { id: 2, name: "Chris", email: "chris@example.com" },
-    { id: 3, name: "Shaunak", email: "shaunak@example.com" }
-  ];
+  const { user: currentUser, login } = useAuth();
+  // Seeded users - will fetch from backend for demo
+  const [seededUsers, setSeededUsers] = useState([]);
   // Participants state (before split starts)
   const [participants, setParticipants] = useState([]);
   const [splitState, setSplitState] = useState(null);
@@ -169,6 +167,17 @@ function Demo() {
   };
 
   useEffect(() => {
+    // fetch users from backend
+    (async () => {
+      try {
+        const res = await fetch('http://localhost:4000/auth/users');
+        const data = await res.json();
+        if (res.ok) setSeededUsers(data.users || []);
+      } catch (err) {
+        console.warn('Could not fetch users', err);
+      }
+    })();
+
     if (isSplitting) {
       // Register listeners first
       mockSocketServer.on('update-split-status', (newState) => setSplitState(newState));
@@ -254,9 +263,36 @@ function Demo() {
       );
       setSplitState({ ...splitState, participants: newParticipants });
       // Simulate network delay before confirming payment.
-      setTimeout(() => {
+      setTimeout(async () => {
         // Calculate dynamic ownership
         const n = splitState.participants.length;
+
+        // Update backend balance for this payer (demo behavior)
+        try {
+          const payer = seededUsers.find(u => u.id === userId);
+          const participant = splitState.participants.find(p => p.id === userId) || participants.find(p => p.id === userId);
+          const share = participant?.share || 0;
+          if (payer) {
+            const newBalance = Number(payer.balance || 0) - Number(share || 0);
+            const res = await fetch('http://localhost:4000/auth/set-balance', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: payer.email, name: payer.name, balance: newBalance }),
+            });
+            const data = await res.json();
+            if (res.ok && data.user) {
+              // Update local seeded list
+              setSeededUsers((prev) => prev.map(u => u.id === data.user.id ? data.user : u));
+              // If the payer is the logged in user, update auth context so Profile updates
+              if (currentUser && currentUser.email === data.user.email) {
+                login(localStorage.getItem('liquidSplitToken'), data.user);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Could not update payer balance', err);
+        }
+
         mockSocketServer.emit('user-paid', { userId, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
       }, 1500);
     }
