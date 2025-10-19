@@ -174,6 +174,8 @@ function Demo() {
     })();
 
     if (isSplitting) {
+      // Clear previous listeners to avoid duplicate events
+      mockSocketServer.listeners = {};
       mockSocketServer.on('update-split-status', (newState) => setSplitState(newState));
       mockSocketServer.on('split-complete', (data) => {
         setIsComplete(true);
@@ -186,11 +188,11 @@ function Demo() {
   const handleStartSplit = () => {
     // When split starts, auto-pay all except current user, who gets Duo popup
     if (participants.length === 0) return alert("Add at least one participant!");
-  const initial = recalcShares(participants).map(p => ({ ...p, status: p.id === currentUser?.id ? 'pending' : 'paid' }));
-  // Update the mock server state first so emits find participants
-  mockSocketServer.state.participants = initial;
-  mockSocketServer.state.totalAmount = TOTAL_AMOUNT;
-  setSplitState({ totalAmount: TOTAL_AMOUNT, participants: initial });
+    const initial = recalcShares(participants).map(p => ({ ...p, status: p.id === currentUser?.id ? 'pending' : 'paid' }));
+    // Update the mock server state first so emits find participants
+    mockSocketServer.state.participants = initial;
+    mockSocketServer.state.totalAmount = TOTAL_AMOUNT;
+    setSplitState({ totalAmount: TOTAL_AMOUNT, participants: initial });
     setIsSplitting(true);
     // If there are others, auto-pay them
     initial.forEach(p => {
@@ -286,6 +288,9 @@ function Demo() {
         }
         mockSocketServer.emit('user-paid', { userId: pendingUser, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
         setPendingUser(null);
+        // Ensure isComplete is set if all paid
+        const allPaid = splitState.participants.every((p) => (p.id === pendingUser ? 'paid' : p.status) === 'paid');
+        if (allPaid) setIsComplete(true);
       }, 1500);
     }
   };

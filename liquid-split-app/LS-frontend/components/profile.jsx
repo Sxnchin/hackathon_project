@@ -1,3 +1,8 @@
+  // Handler for Plaid connect (demo: just alert or link)
+  const handleConnectPlaid = () => {
+    // Replace with Plaid Link logic or redirect as needed
+    alert('Plaid connection flow would start here.');
+  };
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -93,6 +98,17 @@ function Profile() {
           </motion.button>
         </form>
         <div style={{marginTop: "1rem", fontWeight: "bold"}}>Current Balance: ${balance}</div>
+        {user && (
+          <motion.button
+            className="login-btn-modern"
+            style={{marginTop: '1rem', background: '#2563eb'}}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleConnectPlaid}
+          >
+            Connect Plaid
+          </motion.button>
+        )}
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
           <Link to="/demo" className="back-link-modern">Go to Demo</Link>
           <Link to="/" className="back-link-modern">&larr; Back to Home</Link>
