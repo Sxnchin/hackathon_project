@@ -104,7 +104,7 @@ const DuoAuthPopup = ({ onApprove, onCancel, ttl = 60}) => {
         exit={{ scale: 0.8, opacity: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <h3 className="duo-title">Duo Authentication</h3>
+        <h3 className="duo-title">Collective Authentication</h3>
         <p className="duo-desc">Approve login on your device to confirm payment.</p>
         <p className="duo-timer">Expires in {seconds}s</p>
         <div className="duo-actions">
