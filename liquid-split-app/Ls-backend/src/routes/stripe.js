@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config(); // ✅ must come before using process.env
+
 import express from "express";
 import Stripe from "stripe";
 import { PrismaClient } from "@prisma/client";
@@ -6,12 +9,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// Optional: simple ping to confirm router is mounted
+// ===== Simple Ping Route =====
 router.get("/ping", (req, res) => res.json({ ok: true }));
 
-// ===== Webhook handler (must receive raw body) =====
+// ===== Webhook Handler =====
 export async function stripeWebhook(req, res) {
-  console.log("Webhook called, typeof req.body:", typeof req.body, "length:", req.body.length);
+  console.log("🔔 Stripe webhook received:", req.headers["stripe-signature"] ? "signature present" : "no signature");
+
   const sig = req.headers["stripe-signature"];
   if (!process.env.STRIPE_WEBHOOK_SECRET) {
     return res.status(500).json({ error: "Missing STRIPE_WEBHOOK_SECRET" });
@@ -25,7 +29,7 @@ export async function stripeWebhook(req, res) {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
+    console.error("❌ Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -38,7 +42,6 @@ export async function stripeWebhook(req, res) {
         const totalCents = pi.amount_received ?? pi.amount;
 
         if (Number.isFinite(txId)) {
-          // Mark transaction executed (idempotent)
           await prisma.transaction
             .update({
               where: { id: txId },
@@ -48,7 +51,6 @@ export async function stripeWebhook(req, res) {
         }
 
         if (Number.isFinite(potId) && Number.isFinite(totalCents)) {
-          // Increment pot total by dollars (assuming totalAmount is in dollars)
           await prisma.pot
             .update({
               where: { id: potId },
@@ -77,7 +79,7 @@ export async function stripeWebhook(req, res) {
       }
 
       default:
-        console.log("ℹ️ Unhandled event:", event.type);
+        console.log("ℹ️ Unhandled event type:", event.type);
         break;
     }
 
@@ -88,101 +90,25 @@ export async function stripeWebhook(req, res) {
   }
 }
 
-// POST /stripe/onboard — create Stripe Connect onboarding link
-router.post("/onboard", async (req, res) => {
+// ===== Create Payment Intent =====
+router.post("/create-payment-intent", async (req, res) => {
   try {
-    // Accept userId (or accountId) from frontend
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: "Missing userId" });
+    const { amount, potId, transactionId } = req.body;
 
-    // Find or create Stripe account for user
-    let user = await prisma.user.findUnique({ where: { id: Number(userId) } });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    // If user already has a connected account, reuse it
-    let account;
-    if (user.stripeAccountId) {
-      account = await stripe.accounts.retrieve(user.stripeAccountId);
-    } else {
-      // For demo, create a new account and save it to the user
-      account = await stripe.accounts.create({
-      type: "express",
-      country: "US",
-      email: user.email,
-      capabilities: { transfers: { requested: true } },
-      });
-
-      // Save connected account id on user record
-      await prisma.user.update({ where: { id: user.id }, data: { stripeAccountId: account.id } });
+    if (!amount || !potId || !transactionId) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Generate onboarding link
-    const accountLink = await stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: process.env.STRIPE_ONBOARD_REFRESH_URL,
-      return_url: process.env.STRIPE_ONBOARD_RETURN_URL,
-      type: "account_onboarding",
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // convert dollars to cents
+      currency: "usd",
+      metadata: { potId, transactionId },
     });
 
-  // Optionally return account id
-
-    res.json({ url: accountLink.url });
+    res.json({ clientSecret: paymentIntent.client_secret });
   } catch (err) {
-    console.error("Stripe onboard error:", err);
-    res.status(500).json({ error: "Failed to create onboarding link" });
-  }
-});
-
-    // GET /stripe/account/:userId - get user and connected account id
-    router.get('/account/:userId', async (req, res) => {
-      try {
-        const userId = Number(req.params.userId);
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-        res.json({ id: user.id, name: user.name, email: user.email, stripeAccountId: user.stripeAccountId });
-      } catch (err) {
-        console.error('Error fetching user account:', err);
-        res.status(500).json({ error: 'Failed to fetch user' });
-      }
-    });
-
-// POST /stripe/charge — create split payments
-router.post("/charge", async (req, res) => {
-  try {
-    // Accept: potId, amount, description, payerUserIds (array)
-    const { potId, amount, description, payerUserIds } = req.body;
-    if (!potId || !amount || !Array.isArray(payerUserIds) || payerUserIds.length === 0)
-      return res.status(400).json({ error: "potId, amount, payerUserIds required" });
-
-    // Get pot members and shares
-    const pot = await prisma.pot.findUnique({
-      where: { id: Number(potId) },
-      include: { members: true },
-    });
-    if (!pot) return res.status(404).json({ error: "Pot not found" });
-
-    // For each payer, create a PaymentIntent for their share
-    const paymentIntents = [];
-    for (const member of pot.members) {
-      if (!payerUserIds.includes(member.userId)) continue;
-      const shareAmount = Math.round(amount * member.share * 100); // cents
-      if (shareAmount <= 0) continue;
-      const user = await prisma.user.findUnique({ where: { id: member.userId } });
-      if (!user) continue;
-      const pi = await stripe.paymentIntents.create({
-        amount: shareAmount,
-        currency: "usd",
-        description: description || `Split payment for pot ${potId}`,
-        metadata: { potId: potId, userId: member.userId },
-        receipt_email: user.email,
-      });
-      paymentIntents.push({ userId: member.userId, paymentIntentId: pi.id, clientSecret: pi.client_secret });
-    }
-
-    res.json({ paymentIntents });
-  } catch (err) {
-    console.error("Stripe charge error:", err);
-    res.status(500).json({ error: "Failed to create split payments" });
+    console.error("🔥 Stripe PaymentIntent error:", err);
+    res.status(500).json({ error: "Failed to create payment intent" });
   }
 });
 
