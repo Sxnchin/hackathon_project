@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from "../src/utils/authContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -55,6 +55,9 @@ const mockSocketServer = {
   },
   broadcast(event, data) {
     console.debug(`[mockSocket] broadcast ${event}`, data);
+    if (event === 'split-complete') {
+      console.log('[mockSocket] split-complete broadcasted!', data);
+    }
     if (this.listeners[event]) this.listeners[event].forEach((cb) => cb(data));
   },
   state: { totalAmount: 300, participants: [] },
@@ -69,8 +72,11 @@ const mockSocketServer = {
   handleUserPaid(userId) {
     console.debug('[mockSocket] handleUserPaid', userId);
     const user = this.state.participants.find((p) => p.id === userId);
-    if (user && user.status === 'pending') {
+    // Accept both 'pending' and 'paying' states to transition to 'paid'
+    if (user && user.status !== 'paid') {
+      const prev = user.status;
       user.status = 'paid';
+      console.debug(`[mockSocket] user ${userId} status ${prev} -> paid`);
       this.broadcast('update-split-status', { ...this.state });
 
       const allPaid = this.state.participants.every((p) => p.status === 'paid');
@@ -166,6 +172,7 @@ function Demo() {
   const [isComplete, setIsComplete] = useState(false);
   const [showDuo, setShowDuo] = useState(false);
   const [pendingUser, setPendingUser] = useState(null);
+  const [duoApproved, setDuoApproved] = useState(false);
 
   useEffect(() => {
     // fetch users from backend
@@ -185,15 +192,28 @@ function Demo() {
       console.debug('[Demo] update-split-status', newState);
       setSplitState(newState);
     });
-    mockSocketServer.on('split-complete', (data) => {
-      console.debug('[Demo] split-complete', data);
-      setIsComplete(true);
-      setTimeout(() => setReceipts(data.receipts), 2000);
-    });
+      // split-complete should only result in receipts when Duo was approved.
+      const splitCompleteListener = (data) => {
+        if (!duoApprovedRef.current) {
+          console.debug('[Demo] split-complete received but Duo not approved - ignoring');
+          return;
+        }
+        console.debug('[Demo] split-complete', data);
+        setIsComplete(true);
+        setTimeout(() => setReceipts(data.receipts), 2000);
+      };
+      mockSocketServer.on('split-complete', splitCompleteListener);
     if (isSplitting) {
-      mockSocketServer.broadcast('update-split-status', mockSocketServer.state);
+      // Register listeners BEFORE any payment events
+      setTimeout(() => {
+        mockSocketServer.broadcast('update-split-status', mockSocketServer.state);
+      }, 0);
     }
   }, [isSplitting]);
+
+  // Use a ref to provide current duo approval state to socket listeners
+  const duoApprovedRef = useRef(duoApproved);
+  useEffect(() => { duoApprovedRef.current = duoApproved; }, [duoApproved]);
 
   const handleStartSplit = () => {
     // When split starts, auto-pay all except current user, who gets Duo popup
@@ -205,7 +225,9 @@ function Demo() {
     mockSocketServer.state.participants = initial;
     mockSocketServer.state.totalAmount = TOTAL_AMOUNT;
     setSplitState({ totalAmount: TOTAL_AMOUNT, participants: initial });
-    setIsSplitting(true);
+  setIsSplitting(true);
+  // Reset duo approval for a fresh run
+  setDuoApproved(false);
     console.debug('[Demo] handleStartSplit', { initial, pendingId });
     // If there are others, auto-pay them
     initial.forEach(p => {
@@ -270,6 +292,8 @@ function Demo() {
   const approveDuo = () => {
     setShowDuo(false);
     if (pendingUser) {
+      // Mark that Duo was approved
+      setDuoApproved(true);
       // Mark as paying, then backend sync
       const newParticipants = splitState.participants.map((p) =>
         p.id === pendingUser ? { ...p, status: 'paying' } : p
@@ -310,6 +334,7 @@ function Demo() {
   const cancelDuo = () => {
     setShowDuo(false);
     setPendingUser(null);
+    setDuoApproved(false);
     alert("Authentication timed out or denied.");
   };
 
@@ -318,6 +343,32 @@ function Demo() {
   const paidCount = liveParticipants.filter(p => p.status === 'paid').length || 0;
   const totalCount = liveParticipants.length || 0;
   const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+
+  // Safety net: if splitState shows all participants paid, mark as complete and generate receipts
+  useEffect(() => {
+    if (!splitState) return;
+    const allPaid = (splitState.participants || []).every((p) => p.status === 'paid');
+    console.debug('[Demo] splitState change -> allPaid?', allPaid, splitState.participants?.map(p => ({ id: p.id, status: p.status })));
+    if (allPaid && !isComplete) {
+      // Only show receipts if Duo was approved for the pending payer
+      if (!duoApproved) {
+        console.debug('[Demo] All participants paid but Duo not approved - waiting for approval');
+        return;
+      }
+      console.debug('[Demo] All participants paid detected in splitState - generating receipts locally');
+      setIsComplete(true);
+      const n = splitState.participants.length;
+      const ownership = n > 0 ? (100 / n).toFixed(2) + '%' : '100%';
+      const receiptsLocal = splitState.participants.map((p) => ({
+        owner: p.name,
+        value: p.share,
+        ownership,
+        nftId: `0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
+      }));
+      // Slight delay to match existing UX timing
+      setTimeout(() => setReceipts(receiptsLocal), 800);
+    }
+  }, [splitState, isComplete]);
 
   // Remove auto-complete logic: rely on split-complete event for receipts and completion
 
