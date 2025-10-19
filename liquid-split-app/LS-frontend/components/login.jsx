@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
 
 function Login() {
@@ -8,8 +8,13 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
   const { login } = useAuth();
+  const location = useLocation();
+
+  // 👇 This checks if user came from a protected page like /demo
+  const from = location.state?.from?.pathname || "/demo";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
