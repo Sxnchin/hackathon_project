@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from "../src/utils/authContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -119,6 +120,35 @@ const DuoAuthPopup = ({ onApprove, onCancel, ttl = 60}) => {
 
 /* ---------- MAIN DEMO COMPONENT ---------- */
 function Demo() {
+  const TOTAL_AMOUNT = 300;
+
+  // Recalculate per-user shares (dollars) for the DEMO total
+  const recalcShares = (arr) => {
+    const n = arr.length;
+    if (n === 0) return [];
+    const base = Math.floor((TOTAL_AMOUNT / n) * 100) / 100;
+    const remainder = Math.round((TOTAL_AMOUNT - base * n) * 100) / 100;
+    return arr.map((p, i) => ({ ...p, share: i === 0 ? Number((base + remainder).toFixed(2)) : Number(base.toFixed(2)) }));
+  };
+
+  // Add participant before split starts
+  const handleAddMember = () => {
+    // Only allow adding users not already in participants
+    const available = seededUsers.filter(u => !participants.some(p => p.id === u.id));
+    if (available.length === 0) return alert("All members added!");
+    const name = prompt("Add member (choose: " + available.map(u => u.name).join(", ") + "):");
+    const user = available.find(u => u.name.toLowerCase() === name?.trim().toLowerCase());
+    if (user) {
+      setParticipants(prev => recalcShares([...prev, { ...user, status: 'pending' }]));
+    } else if (name) {
+      alert("User not found or already added.");
+    }
+  };
+
+  // Remove participant before split starts
+  const handleRemoveMember = (id) => {
+    setParticipants(prev => recalcShares(prev.filter(p => p.id !== id)));
+  };
   const { user: currentUser, login } = useAuth();
   // Seeded users - will fetch from backend for demo
   const [seededUsers, setSeededUsers] = useState([]);
@@ -154,8 +184,27 @@ function Demo() {
   }, [isSplitting]);
 
   const handleStartSplit = () => {
-    mockSocketServer.emit('start-split');
+    // When split starts, auto-pay all except current user, who gets Duo popup
+    if (participants.length === 0) return alert("Add at least one participant!");
+  const initial = recalcShares(participants).map(p => ({ ...p, status: p.id === currentUser?.id ? 'pending' : 'paid' }));
+  // Update the mock server state first so emits find participants
+  mockSocketServer.state.participants = initial;
+  mockSocketServer.state.totalAmount = TOTAL_AMOUNT;
+  setSplitState({ totalAmount: TOTAL_AMOUNT, participants: initial });
     setIsSplitting(true);
+    // If there are others, auto-pay them
+    initial.forEach(p => {
+      if (p.id !== currentUser?.id) {
+        setTimeout(() => {
+          mockSocketServer.emit('user-paid', { userId: p.id });
+        }, 500);
+      }
+    });
+    // For current user, show Duo popup if present
+    if (initial.some(p => p.id === currentUser?.id)) {
+      setPendingUser(currentUser.id);
+      setShowDuo(true);
+    }
   };
 
 
@@ -249,7 +298,7 @@ function Demo() {
 
   // participants is always splitState?.participants || [] below
   const liveParticipants = isSplitting ? (splitState?.participants ?? []) : participants;
-  const paidCount = isSplitting ? liveParticipants.filter(p => p.status === 'paid').length || 0 : 0;
+  const paidCount = liveParticipants.filter(p => p.status === 'paid').length || 0;
   const totalCount = liveParticipants.length || 0;
   const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
 
@@ -269,16 +318,31 @@ function Demo() {
             </div>
 
             <div className="participants-section">
-              <h4>Participants</h4>
+              <h4 style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <span>Participants</span>
+                {!isSplitting && (
+                  <button onClick={handleAddMember} className="add-people action-btn-modern" style={{marginLeft: 'auto', marginRight: 0}}>Add Members to Group</button>
+                )}
+              </h4>
               <div className="space-y-3">
-                {participants.map((user) => (
-                  <div key={user.id} className="participant-row-modern">
+                {liveParticipants.map((user) => (
+                  <div key={user.id} className="participant-row-modern" style={{position: 'relative'}}>
                     <span className="font-medium text-gray-700">{user.name}</span>
                     <span className="text-gray-600 font-semibold">${user.share.toFixed(2)}</span>
-                    {user.status === 'pending' && (
+                    {!isSplitting && (
+                      <button
+                        className="remove-member-btn"
+                        style={{position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a1a1aa', fontSize: '1.5rem', cursor: 'pointer'}}
+                        title="Remove"
+                        onClick={() => handleRemoveMember(user.id)}
+                      >
+                        &times;
+                      </button>
+                    )}
+                    {isSplitting && user.status === 'pending' && (
                       <button onClick={() => handlePay(user.id)} className="pay-btn-modern">Pay</button>
                     )}
-                    {user.status === 'paid' && <CheckIcon />}
+                    {isSplitting && user.status === 'paid' && <CheckIcon />}
                   </div>
                 ))}
               </div>
