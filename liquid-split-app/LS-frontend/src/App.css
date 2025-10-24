@@ -694,3 +694,129 @@ body {
   margin: 0 auto 1rem auto;
   object-fit: contain;
 }
+.profile-btn {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--brand-primary);
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  margin-left: 1rem;
+}
+
+.profile-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--brand-secondary);
+}
+.receipt-card-modern {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.receipt-card-modern::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  background-image: linear-gradient(to bottom, var(--brand-primary), var(--brand-secondary));
+}
+
+.receipt-card-modern:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Receipt Card */
+.receipt-card-modern {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+  margin-bottom: 1rem;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.receipt-card-modern::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 100%;
+  background-image: linear-gradient(to bottom, var(--brand-primary), var(--brand-secondary));
+  border-top-left-radius: 1rem;
+  border-bottom-left-radius: 1rem;
+}
+
+.receipt-card-modern h5 {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+
+.receipt-card-modern p {
+  margin: 0.15rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.receipt-card-modern:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+/* 💳 Receipt card glow refinement */
+.receipt-card-modern {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.receipt-card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+}
+
+/* 💡 Soft entry glow (matches animation) */
+@keyframes glowPulse {
+  0% { box-shadow: 0 0 0 rgba(34,197,94,0); }
+  50% { box-shadow: 0 0 15px rgba(34,197,94,0.4); }
+  100% { box-shadow: 0 0 0 rgba(34,197,94,0); }
+}
+
+.receipt-card-modern.animate-glow {
+  animation: glowPulse 1.2s ease-in-out;
+}
+
+/* ✅ Authenticator box fine-tune */
+.duo-box {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  width: 320px;
+  text-align: center;
+}
+
+/* Center it visually higher up */
+.duo-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 999;
+}

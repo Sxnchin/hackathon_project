@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 import { PrismaClient } from "@prisma/client";
 
+
 import potRoutes from "./routes/pots.js";
 import authRoutes from "./routes/auth.js";
 import transactionsRoutes from "./routes/transactions.js";

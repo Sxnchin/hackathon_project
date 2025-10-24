@@ -1,26 +1,63 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../src/utils/authContext';
-import '../src/App.css';
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
 
-export default function Nav() {
-  const { user, logout } = useAuth();
+function Nav() {
+  const location = useLocation();
+  const showExtraLinks = location.pathname === "/";
+
+  const handleSmoothScroll = (e, targetId) => {
+    e.preventDefault();
+    const section = document.querySelector(targetId);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
     <nav className="navbar">
-      <div className="nav-logo">LiquidSplit</div>
+      {/* 🔹 Logo (no underline / no hover color) */}
+      <Link
+        to="/"
+        className="nav-logo"
+        style={{
+          textDecoration: "none",
+          color: "var(--brand-primary)",
+          fontWeight: 800,
+          fontSize: "1.6rem",
+          letterSpacing: "-0.5px",
+        }}
+      >
+        LiquidSplit
+      </Link>
+
       <div className="nav-links">
-        <a href="#how-it-works">How It Works</a>
-        <a href="#features">Features</a>
-        <Link to="/get-started" className="get-started">Get Started</Link>
-        {user ? (
+        {showExtraLinks && (
           <>
-            <Link to="/profile" className="get-started">Profile</Link>
+            <a
+              href="#how-it-works"
+              onClick={(e) => handleSmoothScroll(e, "#how-it-works")}
+            >
+              How It Works
+            </a>
+            <a
+              href="#features"
+              onClick={(e) => handleSmoothScroll(e, "#features")}
+            >
+              Features
+            </a>
           </>
-        ) : (
-          <Link to="/login" className="get-started">Login</Link>
         )}
+
+        {/* 🔹 Identical styling for both buttons */}
+        <Link to="/get-started" className="get-started">
+          Get Started
+        </Link>
+        <Link to="/profile" className="get-started">
+          Profile
+        </Link>
       </div>
     </nav>
   );
 }
+
+export default Nav;

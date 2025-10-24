@@ -14,14 +14,15 @@ datasource db {
 // 👤 User Model
 // =====================
 model User {
-  id        Int         @id @default(autoincrement())
-  name      String
-  email     String      @unique
-  password  String      // bcrypt hashed password
-  balance   Float       @default(0)
-  stripeAccountId String? @unique
-  pots      PotMember[] // pots user participates in
-  createdAt DateTime    @default(now())
+  id              Int         @id @default(autoincrement())
+  name            String
+  email           String      @unique
+  password        String // bcrypt hashed password
+  balance         Float       @default(0)
+  stripeAccountId String?     @unique
+  pots            PotMember[] // pots user participates in
+  receipts        Receipt[]   @relation("UserReceipts") // receipts paid by this user
+  createdAt       DateTime    @default(now())
 }
 
 // =====================
@@ -32,6 +33,7 @@ model Pot {
   name        String
   totalAmount Float       @default(0)
   members     PotMember[] // relation through join table
+  receipts    Receipt[]   @relation("PotReceipts") // receipts linked to this pot
   createdAt   DateTime    @default(now())
 }
 
@@ -39,14 +41,29 @@ model Pot {
 // 🤝 PotMember (Join Table)
 // =====================
 model PotMember {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  potId     Int
-  share     Float   @default(0)
+  id     Int   @id @default(autoincrement())
+  userId Int
+  potId  Int
+  share  Float @default(0)
 
   // Relations
   user User @relation(fields: [userId], references: [id])
   pot  Pot  @relation(fields: [potId], references: [id])
 
   @@unique([userId, potId]) // prevents duplicate entries
+}
+
+// =====================
+// 🧾 Receipt Model
+// =====================
+model Receipt {
+  id          Int      @id @default(autoincrement())
+  potId       Int
+  payerId     Int
+  amount      Float
+  timestamp   DateTime @default(now())
+  description String?
+
+  pot   Pot  @relation("PotReceipts", fields: [potId], references: [id])
+  payer User @relation("UserReceipts", fields: [payerId], references: [id])
 }

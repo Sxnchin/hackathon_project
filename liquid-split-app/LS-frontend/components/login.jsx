@@ -13,7 +13,7 @@ function Login() {
   const { login } = useAuth();
   const location = useLocation();
 
-  // 👇 This checks if user came from a protected page like /demo
+  // If user came from a protected page like /demo, go back there after login
   const from = location.state?.from?.pathname || "/demo";
 
   const handleSubmit = async (e) => {
@@ -34,10 +34,16 @@ function Login() {
         throw new Error(data.error || "Login failed. Please try again.");
       }
 
-  // update auth context so navbar updates without page refresh
-  login(data.token, data.user);
-  alert(`✅ Welcome back, ${data.user.name}!`);
-  navigate("/profile");
+      // ✅ Save token to localStorage for protected routes (pots, demo, etc.)
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      // ✅ Update auth context so navbar reflects login state
+      login(data.token, data.user);
+
+      alert(`✅ Welcome back, ${data.user.name}!`);
+      navigate(from, { replace: true });
     } catch (err) {
       console.error("Login error:", err.message);
       setError(err.message);

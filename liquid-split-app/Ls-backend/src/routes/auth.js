@@ -3,7 +3,6 @@ import express from "express";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import { generateToken } from "../middleware/auth.js";
-
 const router = express.Router();
 const prisma = new PrismaClient();
 

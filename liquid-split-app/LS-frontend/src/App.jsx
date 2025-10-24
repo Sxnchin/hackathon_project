@@ -1,37 +1,44 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// ✅ Capitalized imports (match your actual filenames exactly)
+// ✅ Import Components (match the filenames & capitalization exactly)
 import Nav from "../components/nav";
-import Home from "../components/Home";
-import GetStarted from "../components/GetStarted";
+import Home from "../components/home";
+import GetStarted from "../components/getStarted";
 import Demo from "../components/demo";
 import OnboardSuccess from "../components/onboardSuccess";
-import Login from "../components/Login";
+import Login from "../components/login";
 import Profile from "../components/profile";
+
+// ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        {/* 🔝 Global Navbar (shows on all pages) */}
         <Nav />
+
+        {/* 🧭 Route Configuration */}
         <Routes>
-        {/* 🏠 Homepage */}
-        <Route path="/" element={<Home />} />
+          {/* 🏠 Homepage */}
+          <Route path="/" element={<Home />} />
 
-        {/* 📝 Sign Up Page */}
-        <Route path="/get-started" element={<GetStarted />} />
+          {/* 📝 Sign Up Page */}
+          <Route path="/get-started" element={<GetStarted />} />
 
-  {/* 💳 Demo Page */}
-  <Route path="/demo" element={<Demo />} />
+          {/* 💳 Demo Page */}
+          <Route path="/demo" element={<Demo />} />
 
-  {/* Stripe Onboarding return */}
-  <Route path="/onboard/success" element={<OnboardSuccess />} />
+          {/* ✅ Stripe Onboarding Return */}
+          <Route path="/onboard/success" element={<OnboardSuccess />} />
 
-        {/* 🔐 Login Page */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/profile" element={<Profile />} />
+          {/* 🔐 Login Page */}
+          <Route path="/login" element={<Login />} />
+
+          {/* 👤 Profile Page */}
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Router>
     </AuthProvider>

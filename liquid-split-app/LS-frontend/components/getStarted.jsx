@@ -9,7 +9,8 @@ function GetStarted() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // ✅ navigation hook
+
+  const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
@@ -34,18 +35,18 @@ function GetStarted() {
         throw new Error(data.error || "Registration failed. Please try again.");
       }
 
-      alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
-
-      // Optional: save token or user info if your backend returns it
+      // ✅ Save JWT token locally (so pots and demo can access it)
       if (data.token) {
-        // update auth context so navbar updates immediately
-        login(data.token, data.user);
+        localStorage.setItem("token", data.token);
       }
 
-      // 👇 Redirect to the profile page after successful registration
+      // ✅ Update global auth context (for navbar, etc.)
+      login(data.token, data.user);
+
+      alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
       navigate("/profile");
 
-      // Reset fields after success
+      // Clear fields
       setEmail("");
       setUsername("");
       setPassword("");
