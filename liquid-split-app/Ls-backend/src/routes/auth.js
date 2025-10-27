@@ -3,6 +3,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import { generateToken } from "../middleware/auth.js";
+import { validatePassword } from "../utils/passwordValidator.js";
 const router = express.Router();
 const prisma = new PrismaClient();
 
@@ -34,6 +35,12 @@ router.post("/register", async (req, res, next) => {
     const { name, email, password } = req.body;
     if (!name || !email || !password)
       return res.status(400).json({ error: "All fields required" });
+
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ error: passwordValidation.error });
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(400).json({ error: "Email already in use" });
