@@ -10,7 +10,7 @@ import "../src/App.css";
 import { useAuth } from "../src/utils/authContext";
 
 function Profile() {
-  const { user, login } = useAuth();
+  const { user, login, logout } = useAuth();
   const isAuthenticated = Boolean(user?.email);
   const [balance, setBalance] = useState(user?.balance || 0);
   // Fetch latest balance from backend
@@ -152,30 +152,65 @@ function Profile() {
         </form>
         <div style={{marginTop: "1rem", fontWeight: "bold"}}>Current Balance: ${balance}</div>
         {user && (
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "0.75rem",
+              marginTop: "1rem",
+            }}
+          >
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+              <motion.button
+                className="login-btn-modern"
+                style={{ background: "#2563eb" }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleConnectPlaid}
+              >
+                Connect Plaid
+              </motion.button>
+              <motion.button
+                className="login-btn-modern"
+                style={{ background: "#635bff" }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleConnectStripe}
+              >
+                Connect Stripe
+              </motion.button>
+            </div>
             <motion.button
+              type="button"
               className="login-btn-modern"
-              style={{ background: '#2563eb' }}
+              style={{ background: "#ef4444" }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
-              onClick={handleConnectPlaid}
+              onClick={() => {
+                logout();
+                localStorage.removeItem("token");
+              }}
             >
-              Connect Plaid
-            </motion.button>
-            <motion.button
-              className="login-btn-modern"
-              style={{ background: '#635bff' }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleConnectStripe}
-            >
-              Connect Stripe
+              Sign Out
             </motion.button>
           </div>
         )}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
-          <Link to="/demo" className="back-link-modern">Go to Demo</Link>
-          <Link to="/" className="back-link-modern">&larr; Back to Home</Link>
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            justifyContent: "center",
+            marginTop: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <Link to="/demo" className="back-link-modern">
+            Go to Demo
+          </Link>
+          <Link to="/" className="back-link-modern">
+            &larr; Back to Home
+          </Link>
         </div>
         {showNotif && (
           <motion.div

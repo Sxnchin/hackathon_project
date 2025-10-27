@@ -2,7 +2,9 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("liquidSplitToken");
+  const token =
+    localStorage.getItem("liquidSplitToken") ||
+    localStorage.getItem("token");
   const location = useLocation();
 
   // If not logged in, redirect to login
