@@ -64,8 +64,14 @@ function Demo() {
           return;
         }
 
-        const pot = await res.json();
-        setPotId(pot.id);
+        const data = await res.json();
+        const createdPot = data?.pot || data;
+        if (createdPot?.id) {
+          setPotId(createdPot.id);
+          window.dispatchEvent(new Event("pots:refresh"));
+        } else {
+          throw new Error("Invalid pot response");
+        }
       } catch (err) {
         console.error("❌ Pot creation failed:", err);
       }
