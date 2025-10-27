@@ -180,12 +180,17 @@ function Demo() {
     }, 1000);
   };
 
-  const approvePayment = async (user) => {
+  const approvePayment = (user) => {
     setAuthLoading(true);
     setTimeout(async () => {
       setAuthLoading(false);
       setAuthModal(null);
-      handlePaymentSuccess(user.id);
+      try {
+        await handlePaymentSuccess(user.id);
+      } catch (err) {
+        console.error("❌ Payment flow failed:", err);
+        alert("We couldn't finalize that payment. Please try again.");
+      }
     }, 2000);
   };
 
@@ -205,14 +210,89 @@ function Demo() {
       return updated;
     });
 
-    const user = participants.find((p) => p.id === id);
-    const newReceipt = {
-      owner: user.name,
-      value: user.share,
-      ownership: `${(100 / participants.length).toFixed(2)}%`,
-      nftId: `0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
-    };
-    setReceipts((prev) => [...prev, newReceipt]);
+    const payer = participants.find((p) => p.id === id);
+    if (!payer) return;
+
+    const shareValue = Number(payer.share) || 0;
+    const ownershipShare = `${(100 / Math.max(participants.length, 1)).toFixed(
+      2
+    )}%`;
+    const nftId = `0x${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+
+    if (!potId) {
+      setReceipts((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          owner: payer.name,
+          value: shareValue,
+          ownership: ownershipShare,
+          nftId,
+          timestamp: new Date().toISOString(),
+          txHash: `0x${Math.random()
+            .toString(16)
+            .slice(2, 10)
+            .toUpperCase()}`,
+        },
+      ]);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:4000/pots/${potId}/receipts`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            payerId: payer.id,
+            amount: shareValue,
+            description: JSON.stringify({ ownership: ownershipShare, nftId }),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        const message = data?.error || "Failed to save receipt.";
+        throw new Error(message);
+      }
+
+      const receipt = data.receipt;
+      setReceipts((prev) => [
+        ...prev,
+        {
+          id: receipt.id,
+          owner: receipt.payer?.name || payer.name,
+          value: Number(receipt.amount) || shareValue,
+          ownership: ownershipShare,
+          nftId,
+          timestamp: receipt.timestamp,
+          txHash: `0x${receipt.id
+            .toString(16)
+            .padStart(8, "0")
+            .toUpperCase()}`,
+        },
+      ]);
+    } catch (err) {
+      console.error("❌ Saving receipt failed:", err);
+      setReceipts((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          owner: payer.name,
+          value: shareValue,
+          ownership: ownershipShare,
+          nftId,
+          timestamp: new Date().toISOString(),
+          txHash: `0x${Math.random()
+            .toString(16)
+            .slice(2, 10)
+            .toUpperCase()}`,
+          error: true,
+        },
+      ]);
+    }
   };
 
   useEffect(() => {
@@ -223,6 +303,62 @@ function Demo() {
       return () => clearTimeout(timer);
     }
   }, [isComplete]);
+
+  useEffect(() => {
+    if (!showReceipts || !potId) return;
+
+    async function fetchReceipts() {
+      try {
+        const response = await fetch(
+          `http://localhost:4000/pots/${potId}/receipts`,
+          { headers: getAuthHeaders() }
+        );
+        if (!response.ok) {
+          console.error("❌ Failed to load receipts:", response.statusText);
+          return;
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data.receipts)) return;
+
+        const fallbackOwnership = `${(
+          100 / Math.max(participants.length, 1)
+        ).toFixed(2)}%`;
+
+        const hydrated = data.receipts.map((receipt) => {
+          let metadata = {};
+          if (receipt.description) {
+            try {
+              metadata = JSON.parse(receipt.description);
+            } catch (err) {
+              console.warn("⚠️ Could not parse receipt metadata:", err);
+            }
+          }
+
+          const baseId = receipt.id
+            .toString(16)
+            .padStart(8, "0")
+            .toUpperCase();
+
+          return {
+            id: receipt.id,
+            owner: receipt.payer?.name || "Unknown",
+            value: Number(receipt.amount) || 0,
+            ownership: metadata.ownership || fallbackOwnership,
+            nftId: metadata.nftId || `0x${baseId}`,
+            timestamp: receipt.timestamp,
+            txHash: `0x${baseId}`,
+          };
+        });
+
+        setReceipts(hydrated);
+      } catch (error) {
+        console.error("❌ Fetch receipts failed:", error);
+      }
+    }
+
+    fetchReceipts();
+  }, [showReceipts, potId, participants.length]);
 
   return (
     <div className="demo-page-container">
@@ -365,10 +501,10 @@ function Demo() {
                       </p>
                       <p className="text-[11px] text-gray-400 truncate mt-1">NFT ID: {r.nftId}</p>
                       <p className="text-[10px] text-gray-500 font-mono mt-1">
-                        Tx Hash: 0x{Math.random().toString(16).substring(2, 10).toUpperCase()}...
+                        Tx Hash: {r.txHash}
                       </p>
                       <p className="text-[10px] text-gray-400 italic mt-1">
-                        Issued {new Date().toLocaleTimeString()}
+                        Issued {new Date(r.timestamp).toLocaleString()}
                       </p>
                     </motion.div>
                   ))}

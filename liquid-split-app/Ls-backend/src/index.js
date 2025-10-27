@@ -8,6 +8,7 @@ import { PrismaClient } from "@prisma/client";
 
 
 import potRoutes from "./routes/pots.js";
+import receiptsRoutes from "./routes/receipts.js";
 import authRoutes from "./routes/auth.js";
 import transactionsRoutes from "./routes/transactions.js";
 import stripeRoutes, { stripeWebhook } from "./routes/stripe.js";
@@ -83,6 +84,7 @@ app.get("/health", (req, res) => res.send("💧 Ls-backend up and running!"));
 
 // ===== Routes =====
 app.use("/auth", authRoutes);                   // public (register/login)
+app.use("/pots/:potId/receipts", auth, receiptsRoutes); // protected
 app.use("/pots", auth, potRoutes);              // protected
 app.use("/transactions", auth, transactionsRoutes); // protected
 app.use("/stripe", stripeRoutes);               // protected
