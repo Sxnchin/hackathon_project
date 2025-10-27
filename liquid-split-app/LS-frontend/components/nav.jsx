@@ -1,9 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../src/utils/authContext";
 
 function Nav() {
   const location = useLocation();
   const showExtraLinks = location.pathname === "/";
+  const { user } = useAuth();
+  const isAuthenticated = Boolean(user);
 
   const handleSmoothScroll = (e, targetId) => {
     e.preventDefault();
@@ -52,9 +55,20 @@ function Nav() {
         <Link to="/get-started" className="get-started">
           Get Started
         </Link>
-        <Link to="/profile" className="get-started">
-          Profile
-        </Link>
+        {isAuthenticated && (
+          <Link to="/pots" className="get-started">
+            Your Pots
+          </Link>
+        )}
+        {isAuthenticated ? (
+          <Link to="/profile" className="get-started">
+            Profile
+          </Link>
+        ) : (
+          <Link to="/login" className="get-started">
+            Log In
+          </Link>
+        )}
       </div>
     </nav>
   );
