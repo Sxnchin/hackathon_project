@@ -5,19 +5,21 @@ const PasswordStrengthIndicator = ({ score, feedback }) => {
   const getStrengthColor = (score) => {
     switch (score) {
       case 0: return '#ff4444';
-      case 1: return '#ffbb33';
-      case 2: return '#00C851';
-      case 3: return '#007E33';
+      case 1: return '#ff4444';
+      case 2: return '#ffbb33';
+      case 3: return '#00C851';
+      case 4: return '#007E33';
       default: return '#eee';
     }
   };
 
   const getStrengthText = (score) => {
     switch (score) {
-      case 0: return 'Weak';
-      case 1: return 'Fair';
-      case 2: return 'Good';
-      case 3: return 'Strong';
+      case 0: return 'Very Weak';
+      case 1: return 'Weak';
+      case 2: return 'Fair';
+      case 3: return 'Good';
+      case 4: return 'Strong';
       default: return '';
     }
   };
@@ -25,7 +27,7 @@ const PasswordStrengthIndicator = ({ score, feedback }) => {
   return (
     <div className="password-strength-container">
       <div className="strength-bars">
-        {[...Array(3)].map((_, index) => (
+        {[...Array(4)].map((_, index) => (
           <motion.div
             key={index}
             className="strength-bar"
