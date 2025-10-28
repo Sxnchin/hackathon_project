@@ -892,6 +892,12 @@ body {
   margin-bottom: 0.5rem;
 }
 
+.pots-empty .get-started {
+  display: block;
+  width: fit-content;
+  margin: 1.25rem auto 0;
+}
+
 .pots-grid {
   display: flex;
   flex-direction: column;
