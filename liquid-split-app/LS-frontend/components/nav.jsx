@@ -2,9 +2,6 @@ import React from "react";
 // Make sure you're importing useNavigate
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
-
-// FIX: Adjusted import path to resolve the "Could not resolve" error
-import { useAuth } from "../src/utils/authContext";
 function Nav() {
   const location = useLocation();
   // Only show extra links on the home page (path is "/")
