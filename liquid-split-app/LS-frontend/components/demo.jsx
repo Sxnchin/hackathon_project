@@ -30,7 +30,8 @@ const SuccessIcon = () => (
 
 /* ---------- Helper ---------- */
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
+  const token =
+    localStorage.getItem("liquidSplitToken") || localStorage.getItem("token");
   return token
     ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
     : { "Content-Type": "application/json" };

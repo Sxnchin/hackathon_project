@@ -12,6 +12,9 @@ function Pots() {
   const [feedback, setFeedback] = useState(null);
   const [collapsed, setCollapsed] = useState({ owned: false, participating: false });
 
+  const getStoredToken = () =>
+    localStorage.getItem("liquidSplitToken") || localStorage.getItem("token");
+
   const fetchPots = useCallback(async () => {
     if (!user) {
       setPots([]);
@@ -20,7 +23,7 @@ function Pots() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       setError("Missing session token. Please log in again.");
       setLoading(false);
@@ -84,7 +87,7 @@ function Pots() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       setFeedback({ type: "error", message: "Missing session token. Please log in again." });
       return;
@@ -131,7 +134,7 @@ function Pots() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       setFeedback({ type: "error", message: "Missing session token. Please log in again." });
       return;

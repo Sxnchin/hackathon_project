@@ -21,12 +21,14 @@ export function AuthProvider({ children }) {
 
   const login = (token, user) => {
     localStorage.setItem('liquidSplitToken', token);
+    localStorage.setItem('token', token);
     localStorage.setItem('liquidSplitUser', JSON.stringify(user));
     setUser(user);
   };
 
   const logout = () => {
     localStorage.removeItem('liquidSplitToken');
+    localStorage.removeItem('token');
     localStorage.removeItem('liquidSplitUser');
     setUser(null);
   };
