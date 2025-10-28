@@ -9,6 +9,8 @@ import Demo from "../components/demo";
 import OnboardSuccess from "../components/onboardSuccess";
 import Login from "../components/login";
 import Profile from "../components/profile";
+import Pots from "../components/pots";
+
 import Owners from "../components/owners";
 // ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
@@ -40,6 +42,9 @@ function App() {
 
           {/* 👤 Profile Page */}
           <Route path="/profile" element={<Profile />} />
+
+          {/* 🪣 Your Pots Page */}
+          <Route path="/pots" element={<Pots />} />
         </Routes>
       </Router>
     </AuthProvider>

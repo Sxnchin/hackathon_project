@@ -11,11 +11,12 @@ import { useAuth } from "../src/utils/authContext";
 
 function Profile() {
   const { user, login } = useAuth();
+  const isAuthenticated = Boolean(user?.email);
   const [balance, setBalance] = useState(user?.balance || 0);
   // Fetch latest balance from backend
   useEffect(() => {
     async function fetchBalance() {
-      if (!user?.email) return;
+      if (!isAuthenticated) return;
       try {
         const res = await fetch(`http://localhost:4000/auth/users`);
         const data = await res.json();
@@ -26,29 +27,37 @@ function Profile() {
       } catch {}
     }
     fetchBalance();
-  }, [user, user?.email]);
+  }, [isAuthenticated, user?.email]);
   const [input, setInput] = useState("");
   const [showNotif, setShowNotif] = useState(false);
   
 
   const handleSetBalance = async (e) => {
     e.preventDefault();
-    if (!input || isNaN(input)) return;
-  // setBalance(Number(input));
+    if (!isAuthenticated || !user?.name) {
+      alert('Please sign in to update your balance.');
+      return;
+    }
+    const amount = Number(input);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const currentBalance = Number(balance) || 0;
+    const updatedBalance = currentBalance + amount;
     setShowNotif(true);
     // Demo: Add user to DB with balance
     try {
       const res = await fetch("http://localhost:4000/auth/set-balance", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("liquidSplitToken")}` },
-        body: JSON.stringify({ email: user.email, name: user.name, balance: Number(input) })
+        body: JSON.stringify({ email: user.email, name: user.name, balance: updatedBalance })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not save');
       // update context with new user
       login(localStorage.getItem('liquidSplitToken'), data.user);
       // Optionally update localStorage
-      localStorage.setItem("liquidSplitUser", JSON.stringify({ ...user, balance: Number(input) }));
+      localStorage.setItem("liquidSplitUser", JSON.stringify({ ...user, balance: data.user?.balance ?? updatedBalance }));
+      setBalance(data.user?.balance ?? updatedBalance);
+      setInput("");
       // fetch updated balance from backend
       setTimeout(() => {
         fetch(`http://localhost:4000/auth/users`)
@@ -85,6 +94,30 @@ function Profile() {
       alert('Error connecting to Stripe.');
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="login-demo-bg">
+        <motion.div
+          className="login-card-modern"
+          initial={{ opacity: 0, scale: 0.95, y: -20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <div className="login-header">
+            <h2 className="text-3xl font-bold text-gray-800">Login Required</h2>
+            <p className="text-gray-500 mt-2">Sign in to manage your demo balance.</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+            <Link to="/login" className="login-btn-modern" style={{ textAlign: 'center' }}>
+              Go to Login
+            </Link>
+            <Link to="/" className="back-link-modern">&larr; Back to Home</Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-demo-bg">

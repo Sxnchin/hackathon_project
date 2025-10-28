@@ -10,20 +10,86 @@ const prisma = new PrismaClient();
 router.post("/", auth, async (req, res) => {
   try {
     const { name } = req.body;
+    const creatorId = req.user?.userId;
 
     if (!name) return res.status(400).json({ error: "Missing pot name." });
+    if (!creatorId) return res.status(403).json({ error: "Unable to identify creator." });
 
-    const pot = await prisma.pot.create({
-      data: {
-        name,
-        totalAmount: 0,
-      },
+    const pot = await prisma.$transaction(async (tx) => {
+      const createdPot = await tx.pot.create({
+        data: {
+          name,
+          totalAmount: 0,
+          creatorId,
+        },
+      });
+
+      // Ensure the creator is a member with a zero share by default
+      await tx.potMember.upsert({
+        where: { userId_potId: { userId: creatorId, potId: createdPot.id } },
+        update: {},
+        create: { userId: creatorId, potId: createdPot.id, share: 0 },
+      });
+
+      return tx.pot.findUnique({
+        where: { id: createdPot.id },
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          receipts: true,
+        },
+      });
     });
 
-    res.json(pot);
+    res.status(201).json({ pot });
   } catch (error) {
     console.error("❌ Error creating pot:", error);
     res.status(500).json({ error: "Failed to create pot." });
+  }
+});
+
+/* ================================
+   📂 LIST USER POTS
+================================ */
+router.get("/", auth, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(403).json({ error: "Unable to identify user." });
+
+    const pots = await prisma.pot.findMany({
+      where: {
+        OR: [
+          { creatorId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        receipts: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const formatted = pots.map((pot) => {
+      const membership = pot.members.find((member) => member.userId === userId);
+      return {
+        ...pot,
+        role: pot.creatorId === userId ? "owner" : "member",
+        userShare: membership?.share ?? 0,
+      };
+    });
+
+    res.json({ pots: formatted });
+  } catch (error) {
+    console.error("❌ Error listing pots:", error);
+    res.status(500).json({ error: "Failed to list pots." });
   }
 });
 
@@ -36,7 +102,14 @@ router.get("/:id", auth, async (req, res) => {
 
     const pot = await prisma.pot.findUnique({
       where: { id },
-      include: { members: true },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        receipts: true,
+      },
     });
 
     if (!pot) return res.status(404).json({ error: "Pot not found." });
@@ -56,12 +129,23 @@ router.post("/:id/members", auth, async (req, res) => {
     const potId = parseInt(req.params.id);
     const { userId, share } = req.body;
 
+    if (!Number.isInteger(potId))
+      return res.status(400).json({ error: "Invalid pot id parameter." });
+
     if (!userId || share === undefined)
       return res
         .status(400)
         .json({ error: "Missing userId or share in request body." });
 
-    const user = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+    const numericUserId = parseInt(userId);
+    const numericShare = Number(share);
+
+    if (!Number.isInteger(numericUserId))
+      return res.status(400).json({ error: "Invalid userId." });
+    if (!Number.isFinite(numericShare) || numericShare <= 0)
+      return res.status(400).json({ error: "Share must be greater than 0." });
+
+    const user = await prisma.user.findUnique({ where: { id: numericUserId } });
     if (!user) return res.status(404).json({ error: "User not found." });
 
     const pot = await prisma.pot.findUnique({
@@ -70,48 +154,208 @@ router.post("/:id/members", auth, async (req, res) => {
     });
     if (!pot) return res.status(404).json({ error: "Pot not found." });
 
+    const existingMember = pot.members.find((member) => member.userId === numericUserId);
+    if (existingMember)
+      return res
+        .status(400)
+        .json({ error: "User already participates in this pot. Use the update endpoint to adjust their share." });
+
     // 💳 Validate share <= user's balance
-    if (share > user.balance) {
+    if (numericShare > user.balance) {
       return res.status(400).json({
         error: `User ${user.name} cannot contribute more than their balance ($${user.balance}).`,
       });
     }
 
-    // 💰 Deduct the contribution from the user’s balance
-    const newBalance = user.balance - share;
+    const updatedPot = await prisma.$transaction(async (tx) => {
+      // 💰 Deduct the contribution from the user’s balance
+      await tx.user.update({
+        where: { id: user.id },
+        data: { balance: user.balance - numericShare },
+      });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { balance: newBalance },
+      // 👥 Add member to pot
+      await tx.potMember.create({
+        data: {
+          userId: user.id,
+          potId,
+          share: numericShare,
+        },
+      });
+
+      // 🪣 Update pot total
+      await tx.pot.update({
+        where: { id: potId },
+        data: { totalAmount: pot.totalAmount + numericShare },
+      });
+
+      // 🧾 Get updated pot info (with members)
+      return tx.pot.findUnique({
+        where: { id: potId },
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          receipts: true,
+        },
+      });
     });
 
-    // 👥 Add member to pot
-    const member = await prisma.potMember.create({
-      data: {
-        userId: user.id,
-        potId: potId,
-        share,
-      },
-    });
-
-    // 🪣 Update pot total
-    const newTotal = pot.totalAmount + share;
-    await prisma.pot.update({
-      where: { id: potId },
-      data: { totalAmount: newTotal },
-    });
-
-    // 🧾 Get updated pot info (with members)
-    const updatedPot = await prisma.pot.findUnique({
-      where: { id: potId },
-      include: { members: true },
-    });
-
-    console.log(`✅ ${user.name} added to pot ${potId} with $${share} contribution.`);
+    console.log(`✅ ${user.name} added to pot ${potId} with $${numericShare} contribution.`);
     res.json(updatedPot);
   } catch (error) {
     console.error("❌ Error adding member:", error);
     res.status(500).json({ error: "Failed to add member." });
+  }
+});
+
+/* ================================
+   ♻️ UPDATE MEMBER SHARE
+================================ */
+router.patch("/:id/members/:userId", auth, async (req, res) => {
+  try {
+    const potId = parseInt(req.params.id);
+    const targetUserId = parseInt(req.params.userId);
+    const delta = Number(req.body?.delta);
+    const requesterId = req.user?.userId;
+
+    if (!Number.isInteger(potId))
+      return res.status(400).json({ error: "Invalid pot id parameter." });
+    if (!Number.isInteger(targetUserId))
+      return res.status(400).json({ error: "Invalid user id parameter." });
+    if (!Number.isFinite(delta) || delta === 0)
+      return res.status(400).json({ error: "Delta must be a non-zero number." });
+    if (!requesterId)
+      return res.status(403).json({ error: "Unable to identify user." });
+
+    const pot = await prisma.pot.findUnique({
+      where: { id: potId },
+      include: {
+        members: true,
+      },
+    });
+    if (!pot) return res.status(404).json({ error: "Pot not found." });
+
+    // Only the member themselves or the pot owner can adjust the share
+    const isOwner = pot.creatorId && pot.creatorId === requesterId;
+    if (requesterId !== targetUserId && !isOwner) {
+      return res.status(403).json({ error: "You are not allowed to modify this share." });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const membership = pot.members.find((member) => member.userId === targetUserId);
+    const currentShare = membership?.share ?? 0;
+    const nextShare = currentShare + delta;
+
+    if (!membership && delta < 0)
+      return res.status(400).json({ error: "Cannot remove share from a non-member." });
+    if (nextShare < 0)
+      return res.status(400).json({ error: "Share cannot drop below zero." });
+
+    const nextTotal = pot.totalAmount + delta;
+    if (nextTotal < 0)
+      return res.status(400).json({ error: "Pot total cannot drop below zero." });
+
+    if (delta > 0 && user.balance < delta) {
+      return res
+        .status(400)
+        .json({ error: `User ${user.name} does not have enough balance to add $${delta}.` });
+    }
+
+    const updatedPot = await prisma.$transaction(async (tx) => {
+      if (!membership) {
+        await tx.potMember.create({
+          data: {
+            userId: targetUserId,
+            potId,
+            share: delta,
+          },
+        });
+      } else {
+        await tx.potMember.update({
+          where: { userId_potId: { userId: targetUserId, potId } },
+          data: { share: nextShare },
+        });
+      }
+
+      if (delta > 0) {
+        await tx.user.update({
+          where: { id: targetUserId },
+          data: { balance: { decrement: delta } },
+        });
+        await tx.pot.update({
+          where: { id: potId },
+          data: { totalAmount: { increment: delta } },
+        });
+      } else {
+        const absDelta = Math.abs(delta);
+        await tx.user.update({
+          where: { id: targetUserId },
+          data: { balance: { increment: absDelta } },
+        });
+        await tx.pot.update({
+          where: { id: potId },
+          data: { totalAmount: { decrement: absDelta } },
+        });
+      }
+
+      return tx.pot.findUnique({
+        where: { id: potId },
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          receipts: true,
+        },
+      });
+    });
+
+    res.json({ pot: updatedPot });
+  } catch (error) {
+    console.error("❌ Error updating member share:", error);
+    res.status(500).json({ error: "Failed to update member share." });
+  }
+});
+
+/* ================================
+   🗑️ DELETE POT (OWNER ONLY)
+================================ */
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const potId = parseInt(req.params.id);
+    const requesterId = req.user?.userId;
+
+    if (!Number.isInteger(potId))
+      return res.status(400).json({ error: "Invalid pot id parameter." });
+    if (!requesterId)
+      return res.status(403).json({ error: "Unable to identify user." });
+
+    const pot = await prisma.pot.findUnique({
+      where: { id: potId },
+      select: { creatorId: true },
+    });
+    if (!pot) return res.status(404).json({ error: "Pot not found." });
+
+    if (pot.creatorId !== requesterId) {
+      return res.status(403).json({ error: "Only the pot owner can delete this pot." });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.receipt.deleteMany({ where: { potId } });
+      await tx.potMember.deleteMany({ where: { potId } });
+      await tx.pot.delete({ where: { id: potId } });
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("❌ Error deleting pot:", error);
+    res.status(500).json({ error: "Failed to delete pot." });
   }
 });
 
