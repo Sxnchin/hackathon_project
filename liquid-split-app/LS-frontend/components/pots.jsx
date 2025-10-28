@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "../src/utils/authContext";
 
 function Pots() {
-  const { user } = useAuth();
+  const { user, logout, readToken } = useAuth();
   const [pots, setPots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -12,8 +12,7 @@ function Pots() {
   const [feedback, setFeedback] = useState(null);
   const [collapsed, setCollapsed] = useState({ owned: false, participating: false });
 
-  const getStoredToken = () =>
-    localStorage.getItem("liquidSplitToken") || localStorage.getItem("token");
+  const getStoredToken = () => readToken();
 
   const fetchPots = useCallback(async () => {
     if (!user) {
@@ -39,6 +38,10 @@ function Pots() {
           Authorization: `Bearer ${token}`,
         },
       });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Unable to load your pots right now.");
@@ -105,6 +108,10 @@ function Pots() {
           Authorization: `Bearer ${token}`,
         },
       });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Unable to delete pot.");
@@ -151,6 +158,10 @@ function Pots() {
         },
         body: JSON.stringify({ delta }),
       });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Unable to update your share for this pot.");
