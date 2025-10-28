@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 
 /* ---------- ICONS ---------- */
@@ -28,6 +28,72 @@ const SuccessIcon = () => (
   </motion.svg>
 );
 
+/* ---------------------------------------------------------------------- */
+/* ---------- MODIFIED POPUP MODAL COMPONENT (with internal state) ---------- */
+/* ---------------------------------------------------------------------- */
+const PopupModal = ({ popupData, onConfirm, onCancel }) => {
+  if (!popupData) return null;
+
+  // *** FIX: Manage input value locally within the modal component ***
+  const [localInputValue, setLocalInputValue] = useState(popupData.inputValue || "");
+  
+  // Update local state if the initial value passed from parent changes
+  useEffect(() => {
+    setLocalInputValue(popupData.inputValue || "");
+  }, [popupData.inputValue]);
+
+  // Use a modified confirm handler to pass the local state value back
+  const handleConfirm = () => {
+    // onConfirm is now expected to accept the final input value
+    onConfirm(localInputValue); 
+  };
+  
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center"
+      >
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          {popupData.title}
+        </h3>
+        <p className="text-gray-600 mb-4 whitespace-pre-line">{popupData.message}</p>
+
+        {popupData.type === "input" && (
+          <input
+            type={popupData.inputType || "text"}
+            placeholder={popupData.placeholder || ""}
+            className="w-full border border-gray-300 rounded-lg p-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            // *** Bind to LOCAL state ***
+            value={localInputValue}
+            onChange={(e) => setLocalInputValue(e.target.value)}
+          />
+        )}
+
+        <div className="flex justify-center gap-3">
+          {popupData.showCancel && (
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={handleConfirm} // *** Use local handler ***
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
+          >
+            OK
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 /* ---------- Helper ---------- */
 const getAuthHeaders = () => {
   const token =
@@ -48,6 +114,10 @@ function Demo() {
   const [authModal, setAuthModal] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [showReceipts, setShowReceipts] = useState(false);
+  const [popupData, setPopupData] = useState(null);
+  // tempInput state is no longer used for controlling the input value, 
+  // but it's kept to maintain the structure of other logic if it relied on it.
+  const [tempInput, setTempInput] = useState(""); 
 
   /* --- Create Pot on Load --- */
   useEffect(() => {
@@ -60,8 +130,12 @@ function Demo() {
         });
 
         if (res.status === 401) {
-          alert("You must log in before starting a split.");
-          window.location.href = "/login";
+          setPopupData({
+            title: "Login Required",
+            message: "You must log in before starting a split.",
+            // This onConfirm doesn't take an input value
+            onConfirm: () => (window.location.href = "/login"),
+          });
           return;
         }
 
@@ -80,11 +154,36 @@ function Demo() {
     createPot();
   }, []);
 
-  /* --- Add Member --- */
-  const handleAddMember = async () => {
-    const name = prompt("Enter the name of a registered user:");
-    if (!name || name.trim() === "") return alert("Name cannot be empty.");
+  /* ---------------------------------------------------------------------- */
+  /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
+  /* ---------------------------------------------------------------------- */
+  const handleAddMember = useCallback(() => {
+    setPopupData({
+      title: "Add Member",
+      message: "Enter the name of a registered user:",
+      type: "input",
+      // We pass the initial value for local state
+      inputValue: "", 
+      showCancel: true,
+      // *** MODIFIED: The function now accepts the input value 'name' from the Modal ***
+      onConfirm: async (name) => {
+        name = name.trim();
+        if (!name) {
+          setPopupData({
+            title: "Invalid Input",
+            message: "Name cannot be empty.",
+          });
+          return;
+        }
+        setPopupData(null);
+        await proceedAddMember(name);
+      },
+      // setInputValue is no longer strictly needed but kept as placeholder
+      setInputValue: setTempInput, 
+    });
+  }, [setPopupData]); // Dependencies for useCallback
 
+  const proceedAddMember = async (name) => {
     try {
       const usersRes = await fetch("http://localhost:4000/auth/users", {
         headers: getAuthHeaders(),
@@ -92,32 +191,60 @@ function Demo() {
       const { users } = await usersRes.json();
 
       const user = users.find(
-        (u) => u.name.toLowerCase() === name.trim().toLowerCase()
+        (u) => u.name.toLowerCase() === name.toLowerCase()
       );
       if (!user) {
-        alert(`User "${name}" not found. Please have them sign up first.`);
+        setPopupData({
+          title: "User Not Found",
+          message: `User "${name}" not found. Please have them sign up first.`,
+        });
         return;
       }
 
-      const shareInput = prompt(
-        `${user.name}'s current balance: $${user.balance.toFixed(
+      setPopupData({
+        title: "Contribution",
+        message: `${user.name}'s current balance: $${user.balance.toFixed(
           2
-        )}\nEnter amount to contribute:`
-      );
+        )}\nEnter amount to contribute:`,
+        type: "input",
+        inputType: "number",
+        inputValue: "", // Initial value for the contribution input
+        showCancel: true,
+        // *** MODIFIED: The function now accepts the input value 'shareString' ***
+        onConfirm: async (shareString) => {
+          const share = parseFloat(shareString);
+          if (isNaN(share) || share <= 0) {
+            setPopupData({
+              title: "Invalid Amount",
+              message: "Please enter a valid positive number.",
+            });
+            return;
+          }
+          if (share > user.balance) {
+            setPopupData({
+              title: "Insufficient Balance",
+              message: `${user.name} cannot contribute more than their balance.`,
+            });
+            return;
+          }
+          setPopupData(null);
+          await addMemberToPot(user, share);
+        },
+        // setInputValue is no longer strictly needed but kept as placeholder
+        setInputValue: setTempInput, 
+      });
+    } catch (err) {
+      console.error("❌ Add member failed:", err);
+    }
+  };
 
-      const share = parseFloat(shareInput);
-      if (isNaN(share) || share <= 0) {
-        alert("Invalid amount.");
-        return;
-      }
-
-      if (share > user.balance) {
-        alert(`❌ ${user.name} cannot contribute more than their balance.`);
-        return;
-      }
-
+  const addMemberToPot = async (user, share) => {
+    try {
       if (!potId) {
-        alert("Please create a pot first.");
+        setPopupData({
+          title: "Error",
+          message: "Please create a pot first.",
+        });
         return;
       }
 
@@ -137,7 +264,7 @@ function Demo() {
       setParticipants(
         potData.members.map((m) => ({
           id: m.userId,
-          name: users.find((u) => u.id === m.userId)?.name || "Unknown",
+          name: user.name,
           share: m.share,
           status: "pending",
         }))
@@ -148,15 +275,24 @@ function Demo() {
         0
       );
       setTotal(newTotal);
+
+      setPopupData({
+        title: "Member Added",
+        message: `${user.name} has been added successfully!`,
+      });
     } catch (err) {
       console.error("❌ Add member failed:", err);
     }
   };
+/* ---------------------------------------------------------------------- */
 
   /* --- Start Split --- */
   const handleStartSplit = () => {
     if (participants.length < 2) {
-      alert("You need at least 2 members to start the split!");
+      setPopupData({
+        title: "Not Enough Members",
+        message: "You need at least 2 members to start the split!",
+      });
       return;
     }
     setSplitStarted(true);
@@ -193,7 +329,10 @@ function Demo() {
   };
 
   const denyPayment = () => {
-    alert("❌ Authentication denied. Payment cancelled.");
+    setPopupData({
+      title: "Payment Denied",
+      message: "Authentication denied. Payment cancelled.",
+    });
     setAuthModal(null);
   };
 
@@ -513,7 +652,7 @@ function Demo() {
         </div>
       </motion.div>
 
-      {/* ✅ DUO-STYLE AUTHENTICATOR POP-UP */}
+       {/* ✅ DUO-STYLE AUTHENTICATOR POP-UP */}
       {authModal && (
         <div className="duo-overlay">
           <motion.div
@@ -551,6 +690,17 @@ function Demo() {
           </motion.div>
         </div>
       )}
+
+      {/* ✅ GENERIC POP-UP MODAL (Now uses internal state for input) */}
+      <AnimatePresence>
+        <PopupModal
+          popupData={popupData}
+          // The onConfirm function passed here is the one defined in handleAddMember/proceedAddMember, 
+          // which now expects the input value as its first argument.
+          onConfirm={popupData?.onConfirm || (() => setPopupData(null))}
+          onCancel={() => setPopupData(null)}
+        />
+      </AnimatePresence>
 
       <Link to="/" className="back-link-modern">
         &larr; Back to Home

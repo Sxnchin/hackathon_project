@@ -154,8 +154,6 @@ router.post("/:id/members", auth, async (req, res) => {
     });
     if (!pot) return res.status(404).json({ error: "Pot not found." });
 
-    const existingMember = pot.members.find((member) => member.userId === numericUserId);
-
     // 💳 Validate share <= user's balance
     if (numericShare > user.balance) {
       return res.status(400).json({

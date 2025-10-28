@@ -12,6 +12,7 @@ import Profile from "../components/profile";
 import Pots from "../components/pots";
 import ProtectedRoute from "../components/ProtectedRoute";
 
+import Owners from "../components/owners";
 // ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
 
@@ -33,6 +34,7 @@ function App() {
           {/* 💳 Demo Page */}
           <Route path="/demo" element={<Demo />} />
 
+          <Route path = "/owners" element = {<Owners />} />
           {/* ✅ Stripe Onboarding Return */}
           <Route path="/onboard/success" element={<OnboardSuccess />} />
 
