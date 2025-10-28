@@ -155,10 +155,6 @@ router.post("/:id/members", auth, async (req, res) => {
     if (!pot) return res.status(404).json({ error: "Pot not found." });
 
     const existingMember = pot.members.find((member) => member.userId === numericUserId);
-    if (existingMember)
-      return res
-        .status(400)
-        .json({ error: "User already participates in this pot. Use the update endpoint to adjust their share." });
 
     // 💳 Validate share <= user's balance
     if (numericShare > user.balance) {
@@ -171,22 +167,30 @@ router.post("/:id/members", auth, async (req, res) => {
       // 💰 Deduct the contribution from the user’s balance
       await tx.user.update({
         where: { id: user.id },
-        data: { balance: user.balance - numericShare },
+        data: { balance: { decrement: numericShare } },
       });
 
-      // 👥 Add member to pot
-      await tx.potMember.create({
-        data: {
-          userId: user.id,
-          potId,
-          share: numericShare,
-        },
-      });
+      if (existingMember) {
+        // ➕ Increase existing member share
+        await tx.potMember.update({
+          where: { userId_potId: { userId: user.id, potId } },
+          data: { share: { increment: numericShare } },
+        });
+      } else {
+        // 👥 Add member to pot
+        await tx.potMember.create({
+          data: {
+            userId: user.id,
+            potId,
+            share: numericShare,
+          },
+        });
+      }
 
       // 🪣 Update pot total
       await tx.pot.update({
         where: { id: potId },
-        data: { totalAmount: pot.totalAmount + numericShare },
+        data: { totalAmount: { increment: numericShare } },
       });
 
       // 🧾 Get updated pot info (with members)
@@ -203,7 +207,8 @@ router.post("/:id/members", auth, async (req, res) => {
       });
     });
 
-    console.log(`✅ ${user.name} added to pot ${potId} with $${numericShare} contribution.`);
+    const action = existingMember ? "updated share in" : "added to";
+    console.log(`✅ ${user.name} ${action} pot ${potId} with $${numericShare} contribution.`);
     res.json(updatedPot);
   } catch (error) {
     console.error("❌ Error adding member:", error);

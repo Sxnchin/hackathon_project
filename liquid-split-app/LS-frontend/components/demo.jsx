@@ -129,15 +129,6 @@ function Demo() {
 
       if (!res.ok) throw new Error("Failed to add member to backend");
 
-      await fetch("http://localhost:4000/auth/set-balance", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          email: user.email,
-          newBalance: user.balance - share,
-        }),
-      });
-
       const potRes = await fetch(`http://localhost:4000/pots/${potId}`, {
         headers: getAuthHeaders(),
       });
