@@ -131,6 +131,69 @@ router.get("/:id", auth, async (req, res) => {
 });
 
 /* ================================
+   ✏️ UPDATE POT DETAILS
+================================ */
+router.patch("/:id", auth, async (req, res) => {
+  try {
+    const potId = parseInt(req.params.id);
+    const requesterId = req.user?.userId;
+    const { name } = req.body ?? {};
+
+    if (!Number.isInteger(potId)) {
+      return res.status(400).json({ error: "Invalid pot id parameter." });
+    }
+
+    if (!requesterId) {
+      return res.status(403).json({ error: "Unable to identify user." });
+    }
+
+    const trimmedName =
+      typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
+    if (!trimmedName) {
+      return res.status(400).json({ error: "Pot name is required." });
+    }
+    if (trimmedName.length > 80) {
+      return res
+        .status(400)
+        .json({ error: "Pot name must be 80 characters or fewer." });
+    }
+
+    const pot = await prisma.pot.findUnique({
+      where: { id: potId },
+      include: { members: true },
+    });
+    if (!pot) {
+      return res.status(404).json({ error: "Pot not found." });
+    }
+
+    const isOwner = pot.creatorId && pot.creatorId === requesterId;
+    if (!isOwner) {
+      return res
+        .status(403)
+        .json({ error: "Only the pot owner can update the pot name." });
+    }
+
+    const updatedPot = await prisma.pot.update({
+      where: { id: potId },
+      data: { name: trimmedName },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        receipts: true,
+      },
+    });
+
+    res.json({ pot: updatedPot });
+  } catch (error) {
+    console.error("❌ Error updating pot:", error);
+    res.status(500).json({ error: "Failed to update pot." });
+  }
+});
+
+/* ================================
    👥 ADD MEMBER TO POT
 ================================ */
 router.post("/:id/members", auth, async (req, res) => {

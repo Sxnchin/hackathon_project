@@ -118,15 +118,21 @@ function Demo() {
   // tempInput state is no longer used for controlling the input value, 
   // but it's kept to maintain the structure of other logic if it relied on it.
   const [tempInput, setTempInput] = useState(""); 
+  const [potName, setPotName] = useState("Demo Pot");
 
   const hasRequestedPot = useRef(false);
 
-  const requestPotCreation = useCallback(async () => {
+  const requestPotCreation = useCallback(async (preferredName) => {
     try {
+      const desiredName =
+        typeof preferredName === "string" && preferredName.trim().length > 0
+          ? preferredName.trim()
+          : "Demo Pot";
+
       const res = await fetch("http://localhost:4000/pots", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ name: "Demo Pot" }),
+        body: JSON.stringify({ name: desiredName }),
       });
 
       if (res.status === 401) {
@@ -145,6 +151,7 @@ function Demo() {
       }
 
       setPotId(createdPot.id);
+      setPotName(createdPot.name || desiredName);
       window.dispatchEvent(new Event("pots:refresh"));
       return createdPot.id;
     } catch (err) {
@@ -207,6 +214,7 @@ function Demo() {
         );
         const potData = await potRes.json();
 
+        setPotName(potData.name || "Demo Pot");
         setParticipants(
           potData.members.map((m) => ({
             id: m.userId,
@@ -239,6 +247,65 @@ function Demo() {
     },
     [potId, requestPotCreation, setPopupData]
   );
+
+  const handleSetPotName = useCallback(() => {
+    setPopupData({
+      title: "Name Your Pot",
+      message: "Give this demo pot a name or goal (e.g., Rent, Family Trip).",
+      type: "input",
+      inputValue: potName || "",
+      showCancel: true,
+      onConfirm: async (inputName) => {
+        const nextName = (inputName ?? "").trim();
+        if (!nextName) {
+          setPopupData({
+            title: "Invalid Name",
+            message: "Pot name cannot be empty.",
+          });
+          return;
+        }
+
+        setPopupData(null);
+        const ensuredPotId = potId ?? (await requestPotCreation(nextName));
+        if (!ensuredPotId) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:4000/pots/${ensuredPotId}`,
+            {
+              method: "PATCH",
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ name: nextName }),
+            }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              data.error || "Unable to update the pot name right now."
+            );
+          }
+          const updatedName = data.pot?.name || nextName;
+          setPotId(ensuredPotId);
+          setPotName(updatedName);
+          window.dispatchEvent(new Event("pots:refresh"));
+          setPopupData({
+            title: "Pot Name Updated",
+            message: `This pot is now called "${updatedName}".`,
+          });
+        } catch (error) {
+          console.error("❌ Update pot name failed:", error);
+          setPopupData({
+            title: "Update Failed",
+            message:
+              error.message || "We couldn't update the pot name. Try again soon.",
+          });
+        }
+      },
+      setInputValue: setTempInput,
+    });
+  }, [potId, potName, requestPotCreation, setPopupData]);
 
   const proceedAddMember = useCallback(
     async (name) => {
@@ -545,10 +612,25 @@ function Demo() {
         transition={{ duration: 0.5 }}
       >
         <div className="demo-header">
-          <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
-          <p className="text-gray-500 mt-2">
-            Add members, approve payments, and generate receipts.
-          </p>
+          <div className="demo-header-text">
+            <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
+            <p className="text-gray-500 mt-2">
+              Add members, approve payments, and generate receipts.
+            </p>
+          </div>
+          <div className="pot-name-controls">
+            <div className="pot-name-chip">
+              <span className="pot-name-label">Pot Name</span>
+              <strong>{potName?.trim() ? potName : "Demo Pot"}</strong>
+            </div>
+            <button
+              type="button"
+              className="pot-name-btn"
+              onClick={handleSetPotName}
+            >
+              Set Pot Name
+            </button>
+          </div>
         </div>
 
         <div className="demo-content-grid">
