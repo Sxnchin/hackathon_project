@@ -86,7 +86,16 @@ router.get("/", auth, async (req, res) => {
       };
     });
 
-    res.json({ pots: formatted });
+    const visiblePots = formatted.filter((pot) => {
+      const totalAmount = Number(pot.totalAmount || 0);
+      const hasReceipts = Array.isArray(pot.receipts) && pot.receipts.length > 0;
+      const hasPositiveShare = Array.isArray(pot.members)
+        ? pot.members.some((member) => Number(member.share || 0) > 0)
+        : false;
+      return totalAmount > 0 || hasReceipts || hasPositiveShare;
+    });
+
+    res.json({ pots: visiblePots });
   } catch (error) {
     console.error("❌ Error listing pots:", error);
     res.status(500).json({ error: "Failed to list pots." });
@@ -153,6 +162,10 @@ router.post("/:id/members", auth, async (req, res) => {
       include: { members: true },
     });
     if (!pot) return res.status(404).json({ error: "Pot not found." });
+
+    const existingMember = pot.members.find(
+      (member) => member.userId === numericUserId
+    );
 
     // 💳 Validate share <= user's balance
     if (numericShare > user.balance) {

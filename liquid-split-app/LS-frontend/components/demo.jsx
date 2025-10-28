@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 
@@ -119,44 +119,187 @@ function Demo() {
   // but it's kept to maintain the structure of other logic if it relied on it.
   const [tempInput, setTempInput] = useState(""); 
 
-  /* --- Create Pot on Load --- */
-  useEffect(() => {
-    async function createPot() {
-      try {
-        const res = await fetch("http://localhost:4000/pots", {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ name: "Demo Pot" }),
+  const hasRequestedPot = useRef(false);
+
+  const requestPotCreation = useCallback(async () => {
+    try {
+      const res = await fetch("http://localhost:4000/pots", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name: "Demo Pot" }),
+      });
+
+      if (res.status === 401) {
+        setPopupData({
+          title: "Login Required",
+          message: "You must log in before starting a split.",
+          onConfirm: () => (window.location.href = "/login"),
         });
-
-        if (res.status === 401) {
-          setPopupData({
-            title: "Login Required",
-            message: "You must log in before starting a split.",
-            // This onConfirm doesn't take an input value
-            onConfirm: () => (window.location.href = "/login"),
-          });
-          return;
-        }
-
-        const data = await res.json();
-        const createdPot = data?.pot || data;
-        if (createdPot?.id) {
-          setPotId(createdPot.id);
-          window.dispatchEvent(new Event("pots:refresh"));
-        } else {
-          throw new Error("Invalid pot response");
-        }
-      } catch (err) {
-        console.error("❌ Pot creation failed:", err);
+        return null;
       }
+
+      const data = await res.json();
+      const createdPot = data?.pot || data;
+      if (!createdPot?.id) {
+        throw new Error("Invalid pot response");
+      }
+
+      setPotId(createdPot.id);
+      window.dispatchEvent(new Event("pots:refresh"));
+      return createdPot.id;
+    } catch (err) {
+      console.error("❌ Pot creation failed:", err);
+      setPopupData((prev) =>
+        prev ?? {
+          title: "Error Creating Pot",
+          message: "We couldn’t create the demo pot. Please try again.",
+        }
+      );
+      return null;
     }
-    createPot();
-  }, []);
+  }, [setPopupData]);
+
+  /* --- Create Pot on Load (once) --- */
+  useEffect(() => {
+    if (!potId && !hasRequestedPot.current) {
+      hasRequestedPot.current = true;
+      requestPotCreation();
+    }
+  }, [potId, requestPotCreation]);
 
   /* ---------------------------------------------------------------------- */
   /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
   /* ---------------------------------------------------------------------- */
+  const addMemberToPot = useCallback(
+    async (user, share) => {
+      try {
+        let targetPotId = potId;
+        if (!targetPotId) {
+          targetPotId = await requestPotCreation();
+          if (!targetPotId) {
+            setPopupData({
+              title: "Error",
+              message: "Please create a pot first.",
+            });
+            return;
+          }
+        }
+
+        const res = await fetch(
+          `http://localhost:4000/pots/${targetPotId}/members`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ userId: user.id, share }),
+          }
+        );
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload.error || "Failed to add member to backend");
+        }
+
+        const potRes = await fetch(
+          `http://localhost:4000/pots/${targetPotId}`,
+          {
+            headers: getAuthHeaders(),
+          }
+        );
+        const potData = await potRes.json();
+
+        setParticipants(
+          potData.members.map((m) => ({
+            id: m.userId,
+            name: m.user?.name || user.name,
+            share: m.share,
+            status: "pending",
+          }))
+        );
+
+        const newTotal = potData.members.reduce(
+          (sum, m) => sum + parseFloat(m.share || 0),
+          0
+        );
+        setTotal(newTotal);
+
+        setPopupData({
+          title: "Member Added",
+          message: `${user.name} has been added successfully!`,
+        });
+        setPotId(targetPotId);
+      } catch (err) {
+        console.error("❌ Add member failed:", err);
+        setPopupData({
+          title: "Add Member Failed",
+          message:
+            err.message ||
+            "We couldn't add that member. Please try again in a moment.",
+        });
+      }
+    },
+    [potId, requestPotCreation, setPopupData]
+  );
+
+  const proceedAddMember = useCallback(
+    async (name) => {
+      try {
+        const usersRes = await fetch("http://localhost:4000/auth/users", {
+          headers: getAuthHeaders(),
+        });
+        const { users } = await usersRes.json();
+
+        const user = users.find(
+          (u) => u.name.toLowerCase() === name.toLowerCase()
+        );
+        if (!user) {
+          setPopupData({
+            title: "User Not Found",
+            message: `User "${name}" not found. Please have them sign up first.`,
+          });
+          return;
+        }
+
+        setPopupData({
+          title: "Contribution",
+          message: `${user.name}'s current balance: $${user.balance.toFixed(
+            2
+          )}\nEnter amount to contribute:`,
+          type: "input",
+          inputType: "number",
+          inputValue: "",
+          showCancel: true,
+          onConfirm: async (shareString) => {
+            const share = parseFloat(shareString);
+            if (Number.isNaN(share) || share <= 0) {
+              setPopupData({
+                title: "Invalid Amount",
+                message: "Please enter a valid positive number.",
+              });
+              return;
+            }
+            if (share > user.balance) {
+              setPopupData({
+                title: "Insufficient Balance",
+                message: `${user.name} cannot contribute more than their balance.`,
+              });
+              return;
+            }
+            setPopupData(null);
+            await addMemberToPot(user, share);
+          },
+          setInputValue: setTempInput,
+        });
+      } catch (err) {
+        console.error("❌ Add member failed:", err);
+        setPopupData({
+          title: "Error",
+          message: "We couldn't load users. Please try again later.",
+        });
+      }
+    },
+    [addMemberToPot, setPopupData]
+  );
+
   const handleAddMember = useCallback(() => {
     setPopupData({
       title: "Add Member",
@@ -181,112 +324,8 @@ function Demo() {
       // setInputValue is no longer strictly needed but kept as placeholder
       setInputValue: setTempInput, 
     });
-  }, [setPopupData]); // Dependencies for useCallback
+  }, [proceedAddMember, setPopupData]); // Dependencies for useCallback
 
-  const proceedAddMember = async (name) => {
-    try {
-      const usersRes = await fetch("http://localhost:4000/auth/users", {
-        headers: getAuthHeaders(),
-      });
-      const { users } = await usersRes.json();
-
-      const user = users.find(
-        (u) => u.name.toLowerCase() === name.toLowerCase()
-      );
-      if (!user) {
-        setPopupData({
-          title: "User Not Found",
-          message: `User "${name}" not found. Please have them sign up first.`,
-        });
-        return;
-      }
-
-      setPopupData({
-        title: "Contribution",
-        message: `${user.name}'s current balance: $${user.balance.toFixed(
-          2
-        )}\nEnter amount to contribute:`,
-        type: "input",
-        inputType: "number",
-        inputValue: "", // Initial value for the contribution input
-        showCancel: true,
-        // *** MODIFIED: The function now accepts the input value 'shareString' ***
-        onConfirm: async (shareString) => {
-          const share = parseFloat(shareString);
-          if (isNaN(share) || share <= 0) {
-            setPopupData({
-              title: "Invalid Amount",
-              message: "Please enter a valid positive number.",
-            });
-            return;
-          }
-          if (share > user.balance) {
-            setPopupData({
-              title: "Insufficient Balance",
-              message: `${user.name} cannot contribute more than their balance.`,
-            });
-            return;
-          }
-          setPopupData(null);
-          await addMemberToPot(user, share);
-        },
-        // setInputValue is no longer strictly needed but kept as placeholder
-        setInputValue: setTempInput, 
-      });
-    } catch (err) {
-      console.error("❌ Add member failed:", err);
-    }
-  };
-
-  const addMemberToPot = async (user, share) => {
-    try {
-      if (!potId) {
-        setPopupData({
-          title: "Error",
-          message: "Please create a pot first.",
-        });
-        return;
-      }
-
-      const res = await fetch(`http://localhost:4000/pots/${potId}/members`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ userId: user.id, share }),
-      });
-
-      if (!res.ok) throw new Error("Failed to add member to backend");
-
-      const potRes = await fetch(`http://localhost:4000/pots/${potId}`, {
-        headers: getAuthHeaders(),
-      });
-      const potData = await potRes.json();
-
-      setParticipants(
-        potData.members.map((m) => ({
-          id: m.userId,
-          name: user.name,
-          share: m.share,
-          status: "pending",
-        }))
-      );
-
-      const newTotal = potData.members.reduce(
-        (sum, m) => sum + parseFloat(m.share || 0),
-        0
-      );
-      setTotal(newTotal);
-
-      setPopupData({
-        title: "Member Added",
-        message: `${user.name} has been added successfully!`,
-      });
-    } catch (err) {
-      console.error("❌ Add member failed:", err);
-    }
-  };
-/* ---------------------------------------------------------------------- */
-
-  /* --- Start Split --- */
   const handleStartSplit = () => {
     if (participants.length < 2) {
       setPopupData({
