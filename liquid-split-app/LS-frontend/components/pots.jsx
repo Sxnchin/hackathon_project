@@ -4,13 +4,28 @@ import { motion } from "framer-motion";
 import { useAuth } from "../src/utils/authContext";
 
 function Pots() {
-  const { user } = useAuth();
+  const { user, logout, readToken } = useAuth();
   const [pots, setPots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [shareDrafts, setShareDrafts] = useState({});
   const [feedback, setFeedback] = useState(null);
   const [collapsed, setCollapsed] = useState({ owned: false, participating: false });
+  const [sortOptions, setSortOptions] = useState({
+    owned: "latest",
+    participating: "latest",
+  });
+
+  const getStoredToken = useCallback(() => readToken(), [readToken]);
+
+  const getComparator = useCallback((mode) => {
+    if (mode === "largest") {
+      return (a, b) =>
+        Number(b.totalAmount ?? 0) - Number(a.totalAmount ?? 0);
+    }
+    return (a, b) =>
+      new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+  }, []);
 
   const fetchPots = useCallback(async () => {
     if (!user) {
@@ -20,7 +35,7 @@ function Pots() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       setError("Missing session token. Please log in again.");
       setLoading(false);
@@ -36,6 +51,10 @@ function Pots() {
           Authorization: `Bearer ${token}`,
         },
       });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Unable to load your pots right now.");
@@ -47,7 +66,7 @@ function Pots() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, logout, getStoredToken]);
 
   useEffect(() => {
     fetchPots();
@@ -65,14 +84,15 @@ function Pots() {
     return () => clearTimeout(timer);
   }, [feedback]);
 
-  const ownedPots = useMemo(
-    () => pots.filter((pot) => pot.role === "owner"),
-    [pots]
-  );
-  const participatingPots = useMemo(
-    () => pots.filter((pot) => pot.role !== "owner"),
-    [pots]
-  );
+  const ownedPots = useMemo(() => {
+    const list = pots.filter((pot) => pot.role === "owner");
+    return list.slice().sort(getComparator(sortOptions.owned));
+  }, [pots, sortOptions.owned, getComparator]);
+
+  const participatingPots = useMemo(() => {
+    const list = pots.filter((pot) => pot.role !== "owner");
+    return list.slice().sort(getComparator(sortOptions.participating));
+  }, [pots, sortOptions.participating, getComparator]);
 
   const handleDraftChange = (potId, value) => {
     setShareDrafts((prev) => ({ ...prev, [potId]: value }));
@@ -84,7 +104,7 @@ function Pots() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       setFeedback({ type: "error", message: "Missing session token. Please log in again." });
       return;
@@ -102,6 +122,10 @@ function Pots() {
           Authorization: `Bearer ${token}`,
         },
       });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Unable to delete pot.");
@@ -131,7 +155,7 @@ function Pots() {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       setFeedback({ type: "error", message: "Missing session token. Please log in again." });
       return;
@@ -148,6 +172,10 @@ function Pots() {
         },
         body: JSON.stringify({ delta }),
       });
+      if (response.status === 401) {
+        logout();
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Unable to update your share for this pot.");
@@ -224,15 +252,33 @@ function Pots() {
             <section className="pots-section">
               <div className="pots-section-header">
                 <h2>Owned Pots</h2>
-                <button
-                  type="button"
-                  className="pots-toggle-btn"
-                  onClick={() =>
-                    setCollapsed((prev) => ({ ...prev, owned: !prev.owned }))
-                  }
-                >
-                  {collapsed.owned ? "Expand" : "Collapse"}
-                </button>
+                <div className="pots-section-actions">
+                  <div className="pots-sort">
+                    <label htmlFor="owned-sort">Sort by</label>
+                    <select
+                      id="owned-sort"
+                      value={sortOptions.owned}
+                      onChange={(e) =>
+                        setSortOptions((prev) => ({
+                          ...prev,
+                          owned: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="latest">Latest</option>
+                      <option value="largest">Largest Pot</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    className="pots-toggle-btn"
+                    onClick={() =>
+                      setCollapsed((prev) => ({ ...prev, owned: !prev.owned }))
+                    }
+                  >
+                    {collapsed.owned ? "Expand" : "Collapse"}
+                  </button>
+                </div>
               </div>
               {!collapsed.owned && (
                 <div className="pots-list">
@@ -324,18 +370,36 @@ function Pots() {
             <section className="pots-section">
               <div className="pots-section-header">
                 <h2>Participating Pots</h2>
-                <button
-                  type="button"
-                  className="pots-toggle-btn"
-                  onClick={() =>
-                    setCollapsed((prev) => ({
-                      ...prev,
-                      participating: !prev.participating,
-                    }))
-                  }
-                >
-                  {collapsed.participating ? "Expand" : "Collapse"}
-                </button>
+                <div className="pots-section-actions">
+                  <div className="pots-sort">
+                    <label htmlFor="participating-sort">Sort by</label>
+                    <select
+                      id="participating-sort"
+                      value={sortOptions.participating}
+                      onChange={(e) =>
+                        setSortOptions((prev) => ({
+                          ...prev,
+                          participating: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="latest">Latest</option>
+                      <option value="largest">Largest Pot</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    className="pots-toggle-btn"
+                    onClick={() =>
+                      setCollapsed((prev) => ({
+                        ...prev,
+                        participating: !prev.participating,
+                      }))
+                    }
+                  >
+                    {collapsed.participating ? "Expand" : "Collapse"}
+                  </button>
+                </div>
               </div>
               {!collapsed.participating && (
                 <div className="pots-list">
