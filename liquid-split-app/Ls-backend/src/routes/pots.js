@@ -10,10 +10,24 @@ const prisma = new PrismaClient();
 router.post("/", auth, async (req, res) => {
   try {
     const { name } = req.body;
-    const creatorId = req.user?.userId;
+    const creatorIdRaw = req.user?.userId;
+    const creatorId = Number(creatorIdRaw);
 
     if (!name) return res.status(400).json({ error: "Missing pot name." });
-    if (!creatorId) return res.status(403).json({ error: "Unable to identify creator." });
+    if (!Number.isInteger(creatorId)) {
+      return res.status(403).json({ error: "Unable to identify creator." });
+    }
+
+    // Verify the token still maps to an existing user to avoid FK violations
+    const creator = await prisma.user.findUnique({
+      where: { id: creatorId },
+      select: { id: true },
+    });
+    if (!creator) {
+      return res
+        .status(401)
+        .json({ error: "Creator account not found. Please log in again." });
+    }
 
     const pot = await prisma.$transaction(async (tx) => {
       const createdPot = await tx.pot.create({
@@ -56,8 +70,11 @@ router.post("/", auth, async (req, res) => {
 ================================ */
 router.get("/", auth, async (req, res) => {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(403).json({ error: "Unable to identify user." });
+    const userIdRaw = req.user?.userId;
+    const userId = Number(userIdRaw);
+    if (!Number.isInteger(userId)) {
+      return res.status(403).json({ error: "Unable to identify user." });
+    }
 
     const pots = await prisma.pot.findMany({
       where: {
@@ -136,14 +153,15 @@ router.get("/:id", auth, async (req, res) => {
 router.patch("/:id", auth, async (req, res) => {
   try {
     const potId = parseInt(req.params.id);
-    const requesterId = req.user?.userId;
+    const requesterIdRaw = req.user?.userId;
+    const requesterId = Number(requesterIdRaw);
     const { name } = req.body ?? {};
 
     if (!Number.isInteger(potId)) {
       return res.status(400).json({ error: "Invalid pot id parameter." });
     }
 
-    if (!requesterId) {
+    if (!Number.isInteger(requesterId)) {
       return res.status(403).json({ error: "Unable to identify user." });
     }
 
@@ -298,7 +316,8 @@ router.patch("/:id/members/:userId", auth, async (req, res) => {
     const potId = parseInt(req.params.id);
     const targetUserId = parseInt(req.params.userId);
     const delta = Number(req.body?.delta);
-    const requesterId = req.user?.userId;
+    const requesterIdRaw = req.user?.userId;
+    const requesterId = Number(requesterIdRaw);
 
     if (!Number.isInteger(potId))
       return res.status(400).json({ error: "Invalid pot id parameter." });
@@ -306,7 +325,7 @@ router.patch("/:id/members/:userId", auth, async (req, res) => {
       return res.status(400).json({ error: "Invalid user id parameter." });
     if (!Number.isFinite(delta) || delta === 0)
       return res.status(400).json({ error: "Delta must be a non-zero number." });
-    if (!requesterId)
+    if (!Number.isInteger(requesterId))
       return res.status(403).json({ error: "Unable to identify user." });
 
     const pot = await prisma.pot.findUnique({
@@ -408,11 +427,12 @@ router.patch("/:id/members/:userId", auth, async (req, res) => {
 router.delete("/:id", auth, async (req, res) => {
   try {
     const potId = parseInt(req.params.id);
-    const requesterId = req.user?.userId;
+    const requesterIdRaw = req.user?.userId;
+    const requesterId = Number(requesterIdRaw);
 
     if (!Number.isInteger(potId))
       return res.status(400).json({ error: "Invalid pot id parameter." });
-    if (!requesterId)
+    if (!Number.isInteger(requesterId))
       return res.status(403).json({ error: "Unable to identify user." });
 
     const pot = await prisma.pot.findUnique({

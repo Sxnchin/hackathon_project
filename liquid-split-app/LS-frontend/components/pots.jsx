@@ -142,7 +142,7 @@ function Pots() {
     }
   };
 
-  const handleAdjustShare = async (potId, mode) => {
+  const handleAddFunds = async (potId) => {
     const rawInput = shareDrafts[potId];
     const amount = Number(rawInput);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -161,8 +161,6 @@ function Pots() {
       return;
     }
 
-    const delta = mode === "add" ? amount : -amount;
-
     try {
       const response = await fetch(`http://localhost:4000/pots/${potId}/members/${user.id}`, {
         method: "PATCH",
@@ -170,7 +168,7 @@ function Pots() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ delta }),
+        body: JSON.stringify({ delta: amount }),
       });
       if (response.status === 401) {
         logout();
@@ -182,7 +180,7 @@ function Pots() {
       }
 
       setShareDrafts((prev) => ({ ...prev, [potId]: "" }));
-      setFeedback({ type: "success", message: "Share updated successfully." });
+      setFeedback({ type: "success", message: "Funds added successfully." });
       await fetchPots();
       window.dispatchEvent(new Event("pots:refresh"));
     } catch (err) {
@@ -344,18 +342,9 @@ function Pots() {
                           className="get-started"
                           whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.97 }}
-                          onClick={() => handleAdjustShare(pot.id, "add")}
+                          onClick={() => handleAddFunds(pot.id)}
                         >
                           Add Funds
-                        </motion.button>
-                        <motion.button
-                          type="button"
-                          className="withdraw-btn"
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => handleAdjustShare(pot.id, "remove")}
-                        >
-                          Withdraw
                         </motion.button>
                       </div>
                     </div>
@@ -456,18 +445,9 @@ function Pots() {
                           className="get-started"
                           whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.97 }}
-                          onClick={() => handleAdjustShare(pot.id, "add")}
+                          onClick={() => handleAddFunds(pot.id)}
                         >
                           Add Funds
-                        </motion.button>
-                        <motion.button
-                          type="button"
-                          className="withdraw-btn"
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => handleAdjustShare(pot.id, "remove")}
-                        >
-                          Withdraw
                         </motion.button>
                       </div>
                     </div>

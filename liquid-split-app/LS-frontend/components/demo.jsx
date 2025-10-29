@@ -307,6 +307,86 @@ function Demo() {
     });
   }, [potId, potName, requestPotCreation, setPopupData]);
 
+  const handleWithdraw = useCallback(
+    async (user) => {
+      const potMember = participants.find((participant) => participant.id === user.id);
+      const availableShare = Number(potMember?.share ?? 0);
+      if (availableShare <= 0) {
+        setPopupData({
+          title: "Nothing to Withdraw",
+          message: `${user.name} does not have funds to withdraw.`,
+        });
+        return;
+      }
+
+      setPopupData({
+        title: "Withdraw Funds",
+        message: `${user.name} currently has $${availableShare.toFixed(
+          2
+        )} in this pot.\nEnter an amount to withdraw:`,
+        type: "input",
+        inputType: "number",
+        inputValue: availableShare.toFixed(2),
+        showCancel: true,
+        onConfirm: async (amountStr) => {
+          const amount = Number(amountStr);
+          if (!Number.isFinite(amount) || amount <= 0) {
+            setPopupData({
+              title: "Invalid Amount",
+              message: "Please enter an amount greater than zero.",
+            });
+            return;
+          }
+          if (amount > availableShare) {
+            setPopupData({
+              title: "Too High",
+              message: `Cannot withdraw more than $${availableShare.toFixed(2)}.`,
+            });
+            return;
+          }
+
+          setPopupData(null);
+          try {
+            const res = await fetch(
+              `http://localhost:4000/pots/${potId}/members/${user.id}`,
+              {
+                method: "PATCH",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ delta: -amount }),
+              }
+            );
+
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data.error || "Unable to withdraw funds.");
+            }
+
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.id === user.id
+                  ? { ...p, share: p.share - amount, status: "pending" }
+                  : p
+              )
+            );
+            setTotal((prev) => Math.max(0, prev - amount));
+            setPopupData({
+              title: "Withdrawal Successful",
+              message: `${user.name} withdrew $${amount.toFixed(2)}.`,
+            });
+          } catch (error) {
+            console.error("❌ Withdraw failed:", error);
+            setPopupData({
+              title: "Withdraw Failed",
+              message: error.message || "We couldn't process that withdrawal.",
+            });
+          }
+        },
+        setInputValue: setTempInput,
+      });
+    },
+    [participants, potId, setPopupData]
+  );
+
   const proceedAddMember = useCallback(
     async (name) => {
       try {
@@ -666,17 +746,26 @@ function Demo() {
                       <span className="text-gray-600 font-semibold">
                         ${user.share.toFixed(2)}
                       </span>
-                      {splitStarted &&
-                        (user.status === "pending" ? (
-                          <button
-                            onClick={() => openAuthenticator(user)}
-                            className="pay-btn-modern"
-                          >
-                            Pay
-                          </button>
+                      {splitStarted && (
+                        user.status === "pending" ? (
+                          <div className="participant-actions">
+                            <button
+                              onClick={() => openAuthenticator(user)}
+                              className="pay-btn-modern"
+                            >
+                              Pay
+                            </button>
+                            <button
+                              onClick={() => handleWithdraw(user)}
+                              className="demo-withdraw-btn"
+                            >
+                              Withdraw
+                            </button>
+                          </div>
                         ) : (
                           <CheckIcon />
-                        ))}
+                        )
+                      )}
                     </div>
                   ))
                 )}
