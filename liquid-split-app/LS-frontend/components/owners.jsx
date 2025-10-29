@@ -32,11 +32,11 @@ const Owners = () => {
         linkedin: "https://linkedin.com/in/charlie",
       }
     },
-        {
+    {
       name: "Lansina Diakite",
-      title: "Chief Network & Infrastructure Engineer & Co-Founder",
+      title: "Chief Network Security Engineer & Co-Founder",
       image: "https://media.licdn.com/dms/image/v2/D4E03AQEyXZEn78WZ0w/profile-displayphoto-scale_400_400/B4EZl5GqaoIIAg-/0/1758673414325?e=1762992000&v=beta&t=Pe5_cxQP7_bTI5SZkzWvBvOUjwdnMr4FUnQzMiTftJI",
-      bio: "Lansina designs and maintains LiquidSplit's network and infrastructure systems, ensuring the platform stays reliable, fast, and secure. With a background in network engineering and applied cybersecurity, he focuses on building scalable systems that protect user data while keeping performance seamless as the platform grows.",
+      bio: "Lansina specializes in building and securing LiquidSplit's network foundation, ensuring seamless connectivity between core systems and user-facing applications. With experience in network engineering, cybersecurity operations, and system optimization, he bridges infrastructure and development - reinforcing reliability, speed, and protection across the platform.",
       social: {
         linkedin: "https://www.linkedin.com/in/lansina-diakite-7a673b202/",
         
