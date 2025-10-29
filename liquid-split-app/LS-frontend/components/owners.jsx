@@ -6,9 +6,9 @@ const Owners = () => {
   const ownersData = [
     {
       name: "Fabio Facin",
-      title: "Cybersecurity Lead & Co-Founder",
+      title: "Chief Security Officer & Co-Founder",
       image: "https://media.licdn.com/dms/image/v2/D4E03AQEB50qjanVvUw/profile-displayphoto-shrink_400_400/B4EZX3BFH8H0Ag-/0/1743606010671?e=1762992000&v=beta&t=yMxW0U8VajI-NMR9irqlep0c3PqW26yVHbhp4oT_U9c", // Placeholder image, replace with actual owner image
-      bio: "Fabio is the visionary behind LiquidSplit, combining his passion for financial technology with a deep understanding of user experience. With a background in fintech startups, he drives the company's strategic direction and ensures our product remains innovative and user-centric.",
+      bio: "Fabio leads LiquidSplit's security architecture, developing end-to-end systems that safeguard user data and transaction integrity. With a background in ethical hacking, backend development, and full-stack engineering, he designs and implements the platform's secure frameworks - from authentication to encryption - ensuring every layer of LiquidSplit is built for trust, performance, and resilience.",
       social: {
         linkedin: "https://www.linkedin.com/in/fabio-facin-a836a6251/",
         
@@ -16,8 +16,8 @@ const Owners = () => {
     },
     {
       name: "Chris Carchi",
-      title: "Software Engineer & Co-Founder",
-      bio: "Chris leads the technological development at LiquidSplit, ensuring our platform is robust, secure, and scalable. His expertise in blockchain and secure payment systems is crucial to our verified receipt mechanism and instant splitting capabilities.",
+      title: "Lead Product Engineer & Co-Founder",
+      bio: "Chris architects the product experience at LiquidSplit - transforming complex financial logic into intuitive, user-first designs. With a strong foundation in full-stack engineering and product design, he translates user feedback into elegant, scalable solutions that simplify real-world co-ownership transactions.",
       image: chrisImage, // Using imported local image
       social: {
         linkedin: "https://linkedin.com/in/bob"
@@ -25,18 +25,18 @@ const Owners = () => {
     },
     {
       name: "Sanchin Noble",
-      title: "Software Engineer & Co-Founder",
+      title: "Chief Technology Officer & Co-Founder",
       image: "https://media.licdn.com/dms/image/v2/D4E03AQEZhfJNp11QzA/profile-displayphoto-scale_400_400/B4EZjIOIkZHoAk-/0/1755705805839?e=1762992000&v=beta&t=Oxa9vSZnbQ7dndlKTcfFeNpLsiDdzKZdMTWPKy5pjIY", // Placeholder image, replace with actual owner image
-      bio: "Sanchin is the architect of our seamless user journey, translating complex ideas into intuitive features. With a keen eye for design and a focus on user feedback, he ensures LiquidSplit solves real-world problems for friends co-owning purchases.",
+      bio: "Sanchin leads the technical architecture at LiquidSplit, driving scalable backend systems and high-performance infrastructure. His expertise in blockchain and secure APIs enables seamless, verified payment splitting. He's responsible for ensuring the platform's codebase remains efficient, resilient, and future-ready as the company expands.",
       social: {
         linkedin: "https://linkedin.com/in/charlie",
       }
     },
         {
       name: "Lansina Diakite",
-      title: "Cybersecurity specialist",
+      title: "Chief Network & Infrastructure Engineer & Co-Founder",
       image: "https://media.licdn.com/dms/image/v2/D4E03AQEyXZEn78WZ0w/profile-displayphoto-scale_400_400/B4EZl5GqaoIIAg-/0/1758673414325?e=1762992000&v=beta&t=Pe5_cxQP7_bTI5SZkzWvBvOUjwdnMr4FUnQzMiTftJI",
-      bio: "Lansina is the visionary behind LiquidSplit, combining his passion for financial technology with a deep understanding of user experience. With a background in fintech startups, he drives the company's strategic direction and ensures our product remains innovative and user-centric.",
+      bio: "Lansina designs and maintains LiquidSplit's network and infrastructure systems, ensuring the platform stays reliable, fast, and secure. With a background in network engineering and applied cybersecurity, he focuses on building scalable systems that protect user data while keeping performance seamless as the platform grows.",
       social: {
         linkedin: "https://www.linkedin.com/in/lansina-diakite-7a673b202/",
         
