@@ -10,8 +10,9 @@ import OnboardSuccess from "../components/onboardSuccess";
 import Login from "../components/login";
 import Profile from "../components/profile";
 import Pots from "../components/pots";
-
+import FreshNFTs from "../components/FreshNFTs";
 import Owners from "../components/owners";
+
 // ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
 
@@ -45,6 +46,9 @@ function App() {
 
           {/* 🪣 Your Pots Page */}
           <Route path="/pots" element={<Pots />} />
+
+          {/* 🎨 Fresh NFT Collection */}
+          <Route path="/pots/:potId/nfts" element={<FreshNFTs />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -1,8 +1,10 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
+import FreshNFTService from "../services/freshNFT.js";
 
 const router = express.Router({ mergeParams: true });
 const prisma = new PrismaClient();
+const nftService = new FreshNFTService();
 
 /* ================================
    🧾 CREATE RECEIPT FOR POT

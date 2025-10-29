@@ -8,7 +8,7 @@ import { PrismaClient } from "@prisma/client";
 
 
 import potRoutes from "./routes/pots.js";
-import receiptsRoutes from "./routes/receipts.js";
+import receiptsRoutes from "./routes/freshReceipts.js";
 import authRoutes from "./routes/auth.js";
 import transactionsRoutes from "./routes/transactions.js";
 import stripeRoutes, { stripeWebhook } from "./routes/stripe.js";

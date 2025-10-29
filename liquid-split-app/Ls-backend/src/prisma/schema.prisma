@@ -68,6 +68,18 @@ model Receipt {
   timestamp   DateTime @default(now())
   description String?
 
+  // 🎨 NFT Fields
+  nftMinted        Boolean   @default(false)
+  nftTokenId       String?
+  nftTxHash        String?
+  nftContractAddr  String?
+  nftIpfsHash      String?
+  nftMetadataUrl   String?
+  nftOwner         String?
+  nftMintedAt      DateTime?
+  nftOpenseaUrl    String?
+  nftEtherscanUrl  String?
+
   pot   Pot  @relation("PotReceipts", fields: [potId], references: [id], onDelete: Cascade)
   payer User @relation("UserReceipts", fields: [payerId], references: [id])
 }
