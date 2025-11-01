@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import './PasswordStrengthIndicator.css';
 
 const PasswordStrengthIndicator = ({ score, feedback }) => {
   const getStrengthColor = (score) => {

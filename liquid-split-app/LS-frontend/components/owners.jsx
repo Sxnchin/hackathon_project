@@ -1,4 +1,5 @@
 import React from 'react';
+import './owners.css';
 // Assuming you have an Owners.css or app.css that includes these styles
 // import './Owners.css'; // Uncomment if you prefer a dedicated CSS file
 import chrisImage from '../src/assets/me.jpg'; // Example of importing local images

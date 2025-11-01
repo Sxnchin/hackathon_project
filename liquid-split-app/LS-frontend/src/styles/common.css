@@ -1,0 +1,23 @@
+/* Global variables and basic body styles extracted from App.css */
+:root {
+  --brand-primary: #4f46e5; /* Indigo */
+  --brand-secondary: #7c3aed; /* Violet */
+  --brand-light: #a78bfa;
+  --surface-bg: rgba(255, 255, 255, 0.9);
+  --surface-accent: rgba(243, 244, 246, 0.8);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --success-color: #10b981;
+  --border-color: rgba(209, 213, 219, 0.5);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --hero-bg-dark: #1f2937;
+  --hero-text-light: #f3f4f6;
+  --accent-color: #28a745;
+  --text-color-dark: #333;
+  --text-color-light: #f8f8f8;
+  --secondary-bg-color: #eef3f6;
+  --accent-color-rgb: 40, 167, 69;
+}
+
+/* Keep base typography and resets in index.css; this file contains theme variables */
+body { color: var(--text-primary); }

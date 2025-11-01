@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
+import "./auth.css";
 
 // Login attempt tracking constants
 const MAX_LOGIN_ATTEMPTS = 5;

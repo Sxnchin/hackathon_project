@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
+
 import { validatePassword } from "../../shared/passwordValidation";
 import PasswordStrengthIndicator from "./PasswordStrengthIndicator";
+import "./auth.css";
 
 function GetStarted() {
   const [email, setEmail] = useState("");
@@ -134,6 +136,12 @@ function GetStarted() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          {/* <ul>
+            <li className="passwordChecker">Password must be at least 8 characters long</li>
+            <li className="passwordChecker">Password must contain at least one uppercase letter</li>
+            <li className="passwordChecker">Password must contain at least one number</li>
+            <li className="passwordChecker">Password must contain at least one special character (!@#$%^&*...)</li>
+          </ul> */}
 
           <motion.button
             type="submit"
@@ -144,6 +152,32 @@ function GetStarted() {
           >
             {loading ? "Creating..." : "Sign Up"}
           </motion.button>
+<div className="mt-6">
+  <p className="text-center text-gray-500 mb-3">Or continue with</p>
+  <div className="flex justify-center gap-4">
+    <button
+      type="button"
+      className="p-3 bg-white border rounded-full shadow-sm hover:shadow-md transition"
+      onClick={() => alert("Continue with Facebook (to be implemented)")}
+    >
+      <i className="fab fa-facebook-f text-blue-600"></i>
+    </button>
+    <button
+      type="button"
+      className="p-3 bg-white border rounded-full shadow-sm hover:shadow-md transition"
+      onClick={() => alert("Continue with Google (to be implemented)")}
+    >
+      <i className="fab fa-google text-red-500"></i>
+    </button>
+    <button
+      type="button"
+      className="p-3 bg-white border rounded-full shadow-sm hover:shadow-md transition"
+      onClick={() => alert("Continue with GitHub (to be implemented)")}
+    >
+      <i className="fab fa-github text-gray-800"></i>
+    </button>
+  </div>
+</div>
 
           {error && (
             <motion.p

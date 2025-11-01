@@ -1,0 +1,125 @@
+/* General Body and Font Setup */
+.signup-demo-bg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f4f7f9;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Main Card Container */
+.signup-card-modern {
+  display: flex;
+  flex-direction: row-reverse; /* This flips the order of the panels */
+  width: 900px;
+  min-height: 580px;
+  background-color: #fff;
+  border-radius: 25px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* Left Panel (Now the login prompt) */
+.signup-header {
+  flex-basis: 50%;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 40px;
+  background: linear-gradient(165deg, #e14eca, #764ba2);
+}
+
+.signup-header h2 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+}
+
+.signup-header p {
+  font-size: 16px;
+  font-weight: 300;
+  opacity: 0.9;
+  margin: 0 0 30px 0;
+}
+
+.signup-header .brand-name {
+  font-weight: 600;
+}
+
+/* Right Panel (Now the registration form) */
+.signup-form-modern {
+  flex-basis: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 50px;
+  background-color: #fff;
+}
+
+/* Inputs and Labels */
+.signup-form-modern label {
+  display: none; /* Hiding labels as the design uses placeholders */
+}
+
+.signup-form-modern input {
+  width: 100%;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 12px;
+  background-color: #f0f2f5;
+  font-size: 15px;
+  color: #333;
+  outline: none;
+  margin-bottom: 20px;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.signup-form-modern input::placeholder {
+  color: #aaa;
+}
+
+.signup-form-modern input:focus {
+  box-shadow: 0 0 0 2px #9a67ea;
+}
+
+/* Submit Button */
+.signup-btn-modern {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 50px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(to right, #e14eca, #764ba2);
+  transition: opacity 0.3s ease, transform 0.2s ease;
+  margin-top: 10px;
+}
+
+.signup-btn-modern:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.signup-btn-modern:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error Message */
+.signup-error-modern {
+  color: #e74c3c;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 15px;
+}
+
+/* Links below the form */
+.text-center, .back-link-modern {
+  display: none; /* Hiding the original links as they are not in the new design */
+}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import "./pots.css";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../src/utils/authContext";

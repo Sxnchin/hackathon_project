@@ -1,176 +1,5 @@
-/* --- Global Styles & Variables --- */
-:root {
-  --brand-primary: #4f46e5; /* Indigo */
-  --brand-secondary: #7c3aed; /* Violet */
-  --brand-light: #a78bfa;
-  --surface-bg: rgba(255, 255, 255, 0.9);
-  --surface-accent: rgba(243, 244, 246, 0.8);
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --success-color: #10b981;
-  --border-color: rgba(209, 213, 219, 0.5);
-  --shadow-color: rgba(0, 0, 0, 0.1);
+/* App.css has been deprecated — styles moved into per-component stylesheets in /components and variables are in ./styles/common.css */
 
-  /* NEW: Variables for the dark hero section */
-  --hero-bg-dark: #1f2937; /* Dark slate */
-  --hero-text-light: #f3f4f6; /* Off-white for dark background */
-
-  /* Owners Page Specific Variables (Ensure these are defined if used) */
-  --accent-color: #28a745; 
-  --text-color-dark: #333;
-  --text-color-light: #f8f8f8;
-  --secondary-bg-color: #eef3f6;
-  --accent-color-rgb: 40, 167, 69;
-}
-
-body {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  color: var(--text-primary);
-  background-color: #f9fafb;
-}
-
-/* --- Navbar (Refined to be clean, centralized, and floating) --- */
-.navbar {
-  display: flex;
-  /* Distribute space between logo, central links, and buttons */
-  justify-content: space-between; 
-  align-items: center;
-  padding: 1rem 6%; 
-  /* Solid white background for the 'floating' effect over the hero */
-  background: white; 
-  border-bottom: none; 
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  flex-wrap: nowrap; /* Prevent wrapping on desktop */
-  height: 80px; 
-}
-
-.nav-logo {
-  font-size: 1.6rem;
-  font-weight: 800;
-}
-
-/* Container for the central Home page navigation links */
-.nav-center-links {
-  flex-grow: 1; 
-  display: flex;
-  justify-content: center; /* Centers the links within the available space */
-  gap: 2.5rem; /* Increased space between central links */
-}
-
-/* Container for the right-side buttons (Get Started, Pots, Log In/Profile) */
-.nav-links {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap; 
-  gap: 0.75rem; 
-}
-
-/* Styling for the central links (Home page scroll links) */
-.nav-center-links a {
-  font-size: 1rem; 
-  padding: 0.4rem 0.6rem; 
-  text-decoration: none;
-  color: var(--text-secondary);
-  font-weight: 500;
-  transition: color 0.3s;
-  height: auto;
-}
-
-.nav-center-links a:hover {
-  color: var(--brand-primary);
-}
-
-/* --- Action Buttons (Right side of Navbar) --- */
-
-/* Primary action button: Get Started (Solid Fill) */
-.get-started {
-  background: var(--brand-primary);
-  color: white !important;
-  padding: 0.5rem 1.1rem; 
-  font-size: 1rem;
-  border-radius: 8px;
-  transition: background 0.3s ease, transform 0.1s ease;
-  font-weight: 600; 
-  border: none; /* Ensure no border interferes */
-}
-
-.get-started:hover {
-  background: #3730a3;
-  transform: translateY(-1px);
-}
-
-/* Secondary action button (Used for Log In/Profile when Get Started is separate) */
-.login-btn-nav {
-  background: transparent;
-  color: var(--brand-primary) !important;
-  padding: 0.4rem 1rem; 
-  font-size: 1rem;
-  border-radius: 8px;
-  transition: background 0.3s ease;
-  font-weight: 600; 
-  border: 2px solid var(--brand-primary); /* Differentiated style: outline */
-}
-
-.login-btn-nav:hover {
-  background: rgba(79, 70, 229, 0.1);
-  border-color: var(--brand-secondary);
-  color: var(--brand-secondary) !important;
-}
-
-
-/* --- Responsive Adjustments for Mobile Screens (Max-width: 768px) --- */
-@media (max-width: 768px) {
-  .navbar {
-    flex-wrap: wrap; 
-    height: auto;
-    padding: 1rem 4%; 
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Lighter shadow on mobile */
-  }
-
-  /* Hide the central links to declutter the mobile view */
-  .nav-center-links {
-    display: none; 
-  }
-
-  /* Make logo take up space to push buttons right */
-  .nav-logo {
-    flex-grow: 1; 
-  }
-
-  /* Keep the buttons visible on the right */
-  .nav-links {
-    justify-content: flex-end; 
-    gap: 0.5rem;
-  }
-  
-  /* Apply smaller size/padding to buttons on mobile */
-  .get-started, .login-btn-nav {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.85rem;
-    border-width: 1px; /* Thinner border for outline button */
-  }
-}
-
-/* --- Homepage --- */
-.hero {
-  background: var(--hero-bg-dark);
-  color: var(--hero-text-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 80vh;
-  text-align: center;
-  padding: 4rem 2rem;
-  clip-path: polygon(0 0, 100% 0, 100% 90%, 0% 100%); 
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.hero-content {
-  max-width: 700px;
-}
 
 .hero h1 {
   font-size: 4rem; 
@@ -1291,6 +1120,14 @@ body {
   transition: all 0.2s ease-in-out;
 }
 
+.passwordChecker{
+  color:red !important; 
+  font-weight: bold;
+  text-align: left;
+  font-size:12px;
+  margin-left: 12px;
+  list-style-type: disc !important;
+}
 .approve-btn {
   background: #28a745;
   color: white;

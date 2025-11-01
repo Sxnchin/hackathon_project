@@ -1,4 +1,5 @@
 import React from "react";
+import "./nav.css";
 // Make sure you're importing useNavigate
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
