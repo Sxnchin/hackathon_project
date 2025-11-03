@@ -1,0 +1,27 @@
+/* Minimal styles for the Airbnb Browser component */
+.airbnb-browser {
+  background: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.airbnb-browser .p-4 {
+  padding: 1rem;
+}
+
+.airbnb-browser input[type="text"],
+.airbnb-browser input[type="search"] {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.airbnb-browser .grid > div {
+  background: #fff;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .airbnb-browser { padding: 0.5rem; }
+}

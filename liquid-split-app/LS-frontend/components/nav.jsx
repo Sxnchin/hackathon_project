@@ -74,15 +74,24 @@ function Nav() {
       <div className="nav-links">
         
         {/* Primary Call to Action */}
-        <Link to="/get-started" className="get-started">
-          Get Started
-        </Link>
+        {/* --- HIDE "Get Started" if logged in --- */}
+        {!isAuthenticated && (
+          <Link to="/get-started" className="get-started">
+            Get Started
+          </Link>
+        )}
 
         {/* User Pots (Solid Button - same as Get Started) */}
         {isAuthenticated && (
-          <Link to="/pots" className="get-started">
-            Your Pots
-          </Link>
+          <>
+            {/* --- NEW FRIENDS LINK --- */}
+            <Link to="/friends" className="get-started">
+              Friends
+            </Link>
+            <Link to="/pots" className="get-started">
+              Your Pots
+            </Link>
+          </>
         )}
 
         {/* Log In / Profile (Secondary, Outlined Button: login-btn-nav) */}

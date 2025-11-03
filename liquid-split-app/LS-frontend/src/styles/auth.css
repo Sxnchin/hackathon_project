@@ -1,0 +1,226 @@
+/* Login / Signup / Auth styles */
+.login-demo-bg,
+.signup-demo-bg {
+    padding: 2rem;
+    background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23e9d5ff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E'), linear-gradient(170deg, #f3e8ff 0%, #e0f2fe 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-card-modern,
+.signup-card-modern {
+    background: var(--surface-bg);
+    backdrop-filter: blur(20px);
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    max-width: 800px; /* <--- CHANGED */
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 2.5rem 2rem;
+    text-align: center;
+}
+.login-header h2,
+.signup-header h2 {
+    font-weight: 800;
+}
+
+.login-header p,
+.signup-header p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.login-form-modern,
+.signup-form-modern {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    margin-top: 2rem;
+}
+
+.login-form-modern label,
+.signup-form-modern label {
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+    color: #374151;
+}
+
+.login-form-modern input,
+.signup-form-modern input {
+    padding: 0.8rem;
+    border-radius: 0.75rem;
+    border: 1px solid #d1d5db;
+    font-size: 1rem;
+    outline: none;
+    margin-bottom: 1.2rem;
+    transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-form-modern input:focus,
+.signup-form-modern input:focus {
+    border-color: var(--brand-secondary);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+/* Button styles moved to src/styles/common.css */
+.login-error-modern,
+.signup-error-modern {
+    color: #ef4444;
+    font-weight: 500;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.login-link,
+.signup-link {
+    color: var(--brand-primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.login-link:hover,
+.signup-link:hover {
+    color: var(--brand-secondary);
+    text-decoration: underline;
+}
+/* --- NEW STYLES FOR SOCIAL LOGIN --- */
+
+/* 2. Create the 3-column grid */
+/* (Socials | Divider | Form) */
+.login-body-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* Col 1, Col 2 (auto-width), Col 3 */
+  align-items: start;
+  gap: 2rem; /* Space between columns */
+  margin-top: 2rem;
+  text-align: left; /* Aligns content in columns to the left */
+}
+
+/* 3. Style the "OR" divider */
+.login-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #aaa;
+  font-weight: 500;
+  font-size: 0.9rem;
+  position: relative;
+  /* Ensure it stretches to match form height if needed */
+  align-self: stretch; 
+}
+/* The vertical line */
+.login-divider::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 1rem;  /* Give it some padding */
+  bottom: 1rem; /* Give it some padding */
+  width: 1px;
+  background-color: #e0e0e0;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+/* The text background */
+.login-divider span {
+  background: var(--surface-bg); /* Use your card's background variable */
+  padding: 0 0.5rem;
+  z-index: 2;
+  position: relative;
+}
+
+/* 4. Style the new social login buttons */
+.social-login-container {
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  gap: 1rem;
+}
+
+.social-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%; /* Make buttons fill their column */
+}
+
+.social-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Style to match the dark image */
+.social-login-btn.google {
+  background-color: #424242; 
+  color: white;
+  border-color: #424242;
+}
+.social-login-btn.google:hover:not(:disabled) {
+  background-color: #505050;
+}
+
+.social-login-btn.github {
+  background-color: #333; 
+  color: white;
+  border-color: #333;
+}
+.social-login-btn.github:hover:not(:disabled) {
+  background-color: #444;
+}
+
+
+/* 5. Style the new "Forgot Password" link */
+.forgot-password-container {
+  text-align: right;
+  margin-top: -10px; /* Pull it up under the password field */
+  margin-bottom: 1.5rem;
+}
+
+.forgot-password-link {
+  font-size: 0.9rem;
+  color: #007bff; /* Example link color */
+  text-decoration: none;
+}
+.forgot-password-link:hover {
+  text-decoration: underline;
+}
+
+/* --- Responsive styles --- */
+/* On smaller screens, stack the columns */
+@media (max-width: 768px) {
+  .login-card-modern {
+      max-width: 420px; /* Go back to original width */
+  }
+
+  .login-body-grid {
+    grid-template-columns: 1fr; /* Stack them */
+    gap: 1.5rem;
+  }
+  
+  .login-divider {
+    height: auto;
+    width: 100%;
+    padding: 1rem 0;
+  }
+  
+  /* Change divider to horizontal */
+  .login-divider::before {
+    top: 50%;
+    left: 1rem; /* Add padding */
+    right: 1rem; /* Add padding */
+    width: auto; /* Let left/right control width */
+    height: 1px;
+    bottom: auto; /* Unset bottom */
+    transform: translateY(-50%);
+  }
+}

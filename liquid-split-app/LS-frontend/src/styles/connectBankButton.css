@@ -1,0 +1,4 @@
+/* Connect bank styles moved to src/styles/common.css. This file remains to
+   keep the component import stable in case we want component-specific
+   overrides in the future. */
+

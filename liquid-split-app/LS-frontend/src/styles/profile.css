@@ -1,0 +1,52 @@
+/* Profile page specific styles */
+.login-demo-bg {
+  min-height: calc(100vh - 80px); /* account for navbar height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background: transparent;
+}
+
+.login-card-modern {
+  width: 100%;
+  max-width: 760px;
+  background: var(--surface-bg, #fff);
+  border-radius: 12px;
+  padding: 2.25rem;
+  box-shadow: 0 10px 30px rgba(2,6,23,0.06);
+  position: relative;
+}
+
+.login-header h2 {
+  margin-bottom: 0.25rem;
+  color: var(--text-primary, #111827);
+}
+.login-header p { color: var(--text-secondary, #6b7280); margin-top: 0.25rem }
+
+.login-form-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.login-form-modern input[type="number"],
+.login-form-modern input[type="text"],
+.login-form-modern input[type="email"] {
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(0,0,0,0.08));
+  font-size: 1rem;
+  outline: none;
+}
+
+.login-form-modern label { font-weight: 600; color: var(--text-secondary); }
+
+.notif-green { /* small positioning fallback if JS toggles it */
+  min-width: 200px;
+}
+
+@media (max-width: 640px) {
+  .login-card-modern { padding: 1.25rem; margin: 0 0.5rem }
+}
