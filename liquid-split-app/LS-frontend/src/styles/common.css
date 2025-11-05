@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-/* Global variables and basic body styles extracted from App.css */
-=======
-/* Common variables and shared styles used across components */
->>>>>>> Stashed changes
+
 :root {
   --brand-primary: #4f46e5; /* Indigo */
   --brand-secondary: #7c3aed; /* Violet */
@@ -16,7 +12,7 @@
   --shadow-color: rgba(0, 0, 0, 0.1);
   --hero-bg-dark: #1f2937;
   --hero-text-light: #f3f4f6;
-<<<<<<< Updated upstream
+
   --accent-color: #28a745;
   --text-color-dark: #333;
   --text-color-light: #f8f8f8;
@@ -26,8 +22,8 @@
 
 /* Keep base typography and resets in index.css; this file contains theme variables */
 body { color: var(--text-primary); }
-=======
-}
+
+
 
 /* Shared button styles */
 .action-btn-modern,
@@ -123,4 +119,3 @@ html, body { height: 100%; }
   align-items: center;
   justify-content: center;
 }
->>>>>>> Stashed changes

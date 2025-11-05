@@ -1,47 +1,66 @@
-.navbar {
+/* Replaces all of nav.css */
+
+.header {
+  position: fixed; /* Changed from sticky to match codepen */
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1.5rem 6%; /* Using your 6% padding */
+  background: var(--hero-bg-dark, #081b29); /* Fallback to codepen color */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 6%;
-  background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
   z-index: 100;
-  flex-wrap: nowrap;
-  height: 80px;
+  transition: all 0.3s ease;
 }
 
-.nav-logo {
-  font-size: 1.6rem;
-  font-weight: 800;
+.logo {
+  font-size: 1.8rem; /* Slightly smaller than codepen to match original */
+  color: var(--brand-primary, #fff); /* Uses your brand color, falls back to white */
+  font-weight: 800; /* Using your original weight */
+  letter-spacing: -0.5px;
 }
 
-.nav-center-links {
-  flex-grow: 1;
+/* This 'navbar' is the container for all links */
+.navbar {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* Container for "How it works", "Features" */
+.nav-center-links {
+  display: flex;
   gap: 2.5rem;
 }
 
+/* Container for "Profile", "Pots", etc. */
 .nav-links {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
   gap: 0.75rem;
 }
 
 .nav-center-links a {
-  font-size: 1rem;
-  padding: 0.4rem 0.6rem;
-  text-decoration: none;
-  color: var(--text-secondary);
+  font-size: 1.1rem; /* From codepen */
+  color: #ededed; /* From codepen */
   font-weight: 500;
   transition: color 0.3s;
 }
 
-.nav-center-links a:hover { color: var(--brand-primary); }
+.nav-center-links a:hover {
+  color: var(--brand-primary, #00abf0); /* Use your brand, fallback to codepen */
+}
 
+/* Hamburger Menu Icon */
+#menu-icon {
+  font-size: 2.5rem; /* From codepen */
+  color: #fff; /* From codepen */
+  cursor: pointer;
+  display: none; /* Hidden on desktop */
+}
+
+/* --- YOUR BUTTON STYLES (Unchanged, but preserved) --- */
 .get-started {
   background: var(--brand-primary);
   color: white !important;
@@ -49,10 +68,15 @@
   font-size: 1rem;
   border-radius: 8px;
   font-weight: 600;
-  border: none;
+  border: 2px solid var(--brand-primary); /* Added border for consistency */
+  transition: all 0.3s ease;
 }
 
-.get-started:hover { background: #3730a3; transform: translateY(-1px); }
+.get-started:hover {
+  background: #3730a3;
+  border-color: #3730a3;
+  transform: translateY(-1px);
+}
 
 .login-btn-nav {
   background: transparent;
@@ -62,18 +86,77 @@
   border-radius: 8px;
   font-weight: 600;
   border: 2px solid var(--brand-primary);
+  transition: all 0.3s ease;
 }
 
 .login-btn-nav:hover {
   background: rgba(79, 70, 229, 0.1);
-  border-color: var(--brand-secondary);
-  color: var(--brand-secondary) !important;
+  border-color: var(--brand-secondary, #00abf0);
+  color: var(--brand-secondary, #00abf0) !important;
+}
+/* --- END OF YOUR BUTTON STYLES --- */
+
+/* --- MOBILE & RESPONSIVE STYLES --- */
+
+@media (max-width: 992px) {
+  .header {
+    padding: 1.5rem 4%; /* Adjust padding for tablets */
+  }
+  .nav-center-links {
+    gap: 1.5rem;
+  }
 }
 
 @media (max-width: 768px) {
-  .navbar { flex-wrap: wrap; height: auto; padding: 1rem 4%; }
-  .nav-center-links { display: none; }
-  .nav-logo { flex-grow: 1; }
-  .nav-links { justify-content: flex-end; gap: 0.5rem; }
-  .get-started, .login-btn-nav { padding: 0.4rem 0.8rem; font-size: 0.85rem; border-width: 1px; }
+  #menu-icon {
+    display: block; /* Show hamburger menu */
+  }
+
+  .navbar {
+    position: absolute;
+    top: 100%;
+    left: -100%; /* Start off-screen */
+    width: 100%;
+    padding: 1.5rem 4%;
+    background: var(--hero-bg-dark, #081b29);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    
+    /* This makes the menu slide in */
+    transition: left 0.4s ease;
+    
+    /* Stacks the link groups */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .navbar.active {
+    left: 0; /* Slide in */
+  }
+
+  /* Make link groups stack vertically */
+  .nav-center-links,
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+    gap: 1.5rem;
+  }
+  
+  .nav-links {
+     /* Center buttons on mobile */
+    align-items: center;
+  }
+
+  /* Style mobile links from codepen */
+  .nav-center-links a {
+    font-size: 1.25rem; /* Larger for mobile */
+    display: block; /* Make them full-width */
+  }
+  
+  /* Make your buttons wider on mobile */
+  .get-started,
+  .login-btn-nav {
+    width: 80%;
+    text-align: center;
+  }
 }

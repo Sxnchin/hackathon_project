@@ -2,12 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
-<<<<<<< Updated upstream
-import "./auth.css";
-
-=======
 import "../src/styles/auth.css";
->>>>>>> Stashed changes
 // Login attempt tracking constants
 const MAX_LOGIN_ATTEMPTS = 5;
 const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 minutes

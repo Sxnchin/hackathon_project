@@ -18,7 +18,8 @@ import { AuthProvider } from "./utils/authContext";
 
 function App() {
   return (
-    <AuthProvider>
+    <div className="app">
+<AuthProvider>
       <Router>
         {/* 🔝 Global Navbar (shows on all pages) */}
         <Nav />
@@ -64,6 +65,8 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
+    </div>
+    
   );
 }
 

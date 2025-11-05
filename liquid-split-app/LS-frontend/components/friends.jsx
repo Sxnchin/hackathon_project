@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import '../src/styles/friends.css'; // We'll create this file next
+import './friends.css'; // We'll create this file next
 import { useAuth } from '../src/utils/authContext';
 // --- Mock Data ---
 // In a real app, this would come from your database

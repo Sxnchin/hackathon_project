@@ -36,7 +36,7 @@ function Home() {
 
 
   return (
-    <div className="app-container">
+    <div>
       {/* Navbar is provided globally by the Nav component in App.jsx */}
 
       {/* Hero Section */}

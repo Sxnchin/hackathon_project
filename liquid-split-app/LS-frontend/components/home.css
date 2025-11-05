@@ -48,7 +48,15 @@
 .card h3 { font-size: 1.5rem; color: var(--brand-primary); }
 .card:hover { transform: translateY(-8px); box-shadow: 0 12px 28px rgba(79,70,229,0.1); }
 
-.footer { background: var(--hero-bg-dark); color: rgba(255,255,255,0.7); text-align: center; padding: 2.5rem; }
+/* In home.css */
+
+.footer {
+  background: var(--hero-bg-dark);
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  padding: 2.5rem;
+  margin-top: auto; /* <-- ADD THIS LINE */
+}
 
 .features-section { padding: 6rem 5%; background: linear-gradient(135deg, #f9fafb 0%, #f3e8ff 100%); text-align: center; }
 .features-section h2 { font-size: 2.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 1rem; }

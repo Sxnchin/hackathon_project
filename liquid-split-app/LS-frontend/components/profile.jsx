@@ -6,11 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-<<<<<<< Updated upstream
-import "./auth.css";
-=======
-import "../src/styles/profile.css";
->>>>>>> Stashed changes
+import "./profile.css";
 import { useAuth } from "../src/utils/authContext";
 
 function Profile() {
