@@ -13,6 +13,8 @@ import Pots from "../components/pots";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Friends from "../components/friends";
 import Owners from "../components/owners";
+import ChangePassword from "../components/changePassword";
+import ForgotPassword from "../components/forgotPassword";
 // ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
 
@@ -43,12 +45,25 @@ function App() {
           {/* 🔐 Login Page */}
           <Route path="/login" element={<Login />} />
 
-          {/* 👤 Profile Page */}
+          {/* � Forgot Password Page */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          {/* �👤 Profile Page */}
           <Route
             path="/profile"
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🔐 Change Password Page */}
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePassword />
               </ProtectedRoute>
             }
           />

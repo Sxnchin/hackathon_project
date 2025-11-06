@@ -5,12 +5,13 @@ import { useAuth } from "../src/utils/authContext";
 
 import { validatePassword } from "../../shared/passwordValidation";
 import PasswordStrengthIndicator from "./PasswordStrengthIndicator";
-import "./auth.css";
+import "../src/styles/auth.css";
 
 function GetStarted() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,31 +19,30 @@ function GetStarted() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Basic client-side validation
-  const validatePasswordClient = (password) => {
-    if (password.length < 8) {
-      return "Password must be at least 8 characters long";
+  // Update password strength in real-time
+  useEffect(() => {
+    if (password) {
+      const validation = validatePassword(password);
+      setPasswordStrength(validation);
+    } else {
+      setPasswordStrength({ score: 0, feedback: [] });
     }
-    if (!/[A-Z]/.test(password)) {
-      return "Password must contain at least one uppercase letter";
-    }
-    if (!/\d/.test(password)) {
-      return "Password must contain at least one number";
-    }
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-      return "Password must contain at least one special character (!@#$%^&*...)";
-    }
-    return null;
-  };
+  }, [password]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     // Client-side validation
-    const passwordError = validatePasswordClient(password);
-    if (passwordError) {
-      setError(passwordError);
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      setError(validation.feedback.join(", ").replace(/Need /g, "Password must have "));
+      return;
+    }
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
       return;
     }
 
@@ -80,6 +80,7 @@ function GetStarted() {
       setEmail("");
       setUsername("");
       setPassword("");
+      setConfirmPassword("");
     } catch (err) {
       console.error("❌ Registration error:", err.message);
       setError(err.message);
@@ -136,12 +137,23 @@ function GetStarted() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {/* <ul>
-            <li className="passwordChecker">Password must be at least 8 characters long</li>
-            <li className="passwordChecker">Password must contain at least one uppercase letter</li>
-            <li className="passwordChecker">Password must contain at least one number</li>
-            <li className="passwordChecker">Password must contain at least one special character (!@#$%^&*...)</li>
-          </ul> */}
+          
+          {password && (
+            <PasswordStrengthIndicator 
+              score={passwordStrength.score} 
+              feedback={passwordStrength.feedback} 
+            />
+          )}
+
+          <label htmlFor="confirmPassword">Confirm Password</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            placeholder="••••••••"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
 
           <motion.button
             type="submit"

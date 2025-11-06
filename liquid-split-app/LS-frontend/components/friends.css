@@ -270,9 +270,159 @@ h3 {
   background: #f9fafb;
 }
 
+/* --- Toast Notification (corner of screen) --- */
+.toast-notification {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  min-width: 300px;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 9999;
+  font-weight: 500;
+}
+
+.toast-notification button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-left: 1rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.toast-notification button:hover {
+  opacity: 1;
+}
+
+.toast-success {
+  background: #10b981;
+  color: white;
+}
+
+.toast-error {
+  background: #ef4444;
+  color: white;
+}
+
+.toast-info {
+  background: #3b82f6;
+  color: white;
+}
+
+/* --- Friend Requests Banner (top of friends page) --- */
+.friend-requests-banner {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  border-radius: 1rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+.friend-requests-banner h3 {
+  margin: 0 0 1rem 0;
+  padding: 0;
+  border: none;
+  color: white;
+  font-size: 1.25rem;
+}
+
+.requests-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.request-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.request-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.request-item span {
+  flex: 1;
+  font-weight: 500;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.accept-btn,
+.decline-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.accept-btn {
+  background: white;
+  color: #7c3aed;
+}
+
+.accept-btn:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+}
+
+.decline-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.decline-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
 /* --- Responsive --- */
 @media (max-width: 900px) {
   .friends-grid {
     grid-template-columns: 1fr; /* Stack columns */
   }
+  
+  .toast-notification {
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+  }
+  
+  .request-item {
+    flex-wrap: wrap;
+  }
+  
+  .request-actions {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  
+  .accept-btn,
+  .decline-btn {
+    flex: 1;
+  }
 }
+
