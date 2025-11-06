@@ -1,8 +1,36 @@
 .ownersPage{ display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.owners-page-container { font-family: 'Inter', sans-serif; color: #333; background-color: #f8f8f8; line-height: 1.6; padding-top: 80px; }
-.owners-hero { background: linear-gradient(darkblue, lightgrey); color: white; text-align: center; padding: 80px 20px; margin-bottom: 40px; }
-.owners-hero h1 { font-size: 3.5rem; margin-bottom: 15px; font-weight: 700; text-shadow: 2px 2px 8px rgba(0,0,0,0.2); }
-.owners-hero .hero-subtitle { font-size: 1.3rem; max-width: 800px; margin: 0 auto; opacity: 0.9; }
+/* ... other styles ... */
+
+.owners-page-container { 
+  font-family: 'Inter', sans-serif; 
+  color: #333; 
+  background-color: #f8f8f8; 
+  line-height: 1.6; 
+  /* REMOVED THIS: padding-top: 80px; 
+    REASON: Your .owners-hero section already has 80px of padding.
+    This was causing "double padding" at the top of the page.
+  */
+}
+
+.owners-hero { 
+  background: linear-gradient(darkblue, lightgrey); 
+  color: white; 
+  text-align: center; 
+  padding: 80px 20px; 
+  /* REMOVED THIS: margin-bottom: 40px; 
+    REASON: The next section (.owners-grid-section) already has 60px
+    of top padding. This margin was creating an extra-large 100px gap.
+  */
+}
+
+.owners-hero h1 { 
+  font-size: 3.5rem; 
+  margin-bottom: 15px; 
+  font-weight: 700; 
+  text-shadow: 2px 2px 8px rgba(0,0,0,0.2); 
+}
+
+/* ... rest of your styles ... */.owners-hero .hero-subtitle { font-size: 1.3rem; max-width: 800px; margin: 0 auto; opacity: 0.9; }
 .section-title { font-size: 2.5rem; font-weight: 700; color: var(--brand-primary); text-align: center; margin-bottom: 50px; position: relative; }
 .section-title::after { content: ''; position: absolute; left: 50%; bottom: -15px; transform: translateX(-50%); width: 80px; height: 4px; background-color: var(--accent-color); border-radius: 2px; }
 .owners-grid-section { padding: 60px 20px; max-width: 1500px; margin: 0 auto; }
