@@ -208,6 +208,9 @@ function Profile() {
           <Link to="/demo" className="back-link-modern">
             Go to Demo
           </Link>
+          <Link to="/change-password" className="back-link-modern">
+            Change Password
+          </Link>
           <Link to="/" className="back-link-modern">
             &larr; Back to Home
           </Link>

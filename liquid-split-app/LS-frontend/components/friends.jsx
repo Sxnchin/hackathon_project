@@ -1,52 +1,217 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './friends.css'; // We'll create this file next
 import { useAuth } from '../src/utils/authContext';
-// --- Mock Data ---
-// In a real app, this would come from your database
-const MOCK_USERS = [
-  { id: 1, name: 'Alice Green', email: 'alice@example.com' },
-  { id: 2, name: 'Bob Johnson', email: 'bob@example.com' },
-  { id: 3, name: 'Charlie Brown', email: 'charlie@example.com' },
-  { id: 4, name: 'David Lee', email: 'david@example.com' },
-  { id: 5, name: 'Emily White', email: 'emily@example.com' },
-  { id: 6, name: 'Frank Black', email: 'frank@example.com' },
-  { id: 7, name: 'Grace Hall', email: 'grace@example.com' },
-];
-// --------------------
 
 function Friends() {
   const { user } = useAuth(); // Get the current user
   
   // --- State Management ---
-  const [friends, setFriends] = useState([2, 3]); // Mock: User is already friends with Bob (2) and Charlie (3)
-  const [groups, setGroups] = useState([
-    { id: 'g1', name: 'Weekend Trip', members: [2] }
-  ]);
+  const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupMembers, setGroupMembers] = useState([]); // Holds friend IDs for the new group
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [notification, setNotification] = useState(null); // Toast notification
 
-  // --- Memos ---
-  // Memoize friend objects from their IDs
-  const friendObjects = useMemo(() => {
-    return MOCK_USERS.filter(u => friends.includes(u.id));
-  }, [friends]);
+  // --- Load friends and groups on mount ---
+  useEffect(() => {
+    loadFriends();
+    loadFriendRequests();
+    loadGroups();
+  }, []);
 
-  // Memoize search results
-  const searchResults = useMemo(() => {
-    if (!searchTerm) return [];
-    return MOCK_USERS.filter(u => 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  // --- Search users as user types ---
+  useEffect(() => {
+    if (searchTerm.trim().length > 0) {
+      searchUsers();
+    } else {
+      setSearchResults([]);
+    }
   }, [searchTerm]);
 
+  // --- Auto-dismiss notifications after 4 seconds ---
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // --- API Calls ---
+  const loadFriends = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/friends', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFriends(data.friends || []);
+      }
+    } catch (err) {
+      console.error('Error loading friends:', err);
+    }
+  };
+
+  const loadFriendRequests = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/friends/requests', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const newRequests = data.requests || [];
+        setFriendRequests(newRequests);
+        
+        // Show notification if there are new requests
+        if (newRequests.length > 0) {
+          setNotification({
+            type: 'info',
+            message: `You have ${newRequests.length} pending friend request${newRequests.length > 1 ? 's' : ''}`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error loading friend requests:', err);
+    }
+  };
+
+  const loadGroups = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/groups', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGroups(data.groups || []);
+      }
+    } catch (err) {
+      console.error('Error loading groups:', err);
+    }
+  };
+
+  const searchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/friends/search?query=${encodeURIComponent(searchTerm)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSearchResults(data.users || []);
+      }
+    } catch (err) {
+      console.error('Error searching users:', err);
+    }
+  };
+
   // --- Handlers ---
-  const handleAddFriend = (userId) => {
-    if (!friends.includes(userId) && userId !== user?.id) { // Can't add self
-      setFriends(prevFriends => [...prevFriends, userId]);
+  const handleAddFriend = async (friendId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/friends/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ friendId })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setNotification({
+          type: 'success',
+          message: 'Friend request sent!',
+        });
+        // Reload search results
+        if (searchTerm) {
+          await searchUsers();
+        }
+      } else {
+        setNotification({
+          type: 'error',
+          message: data.error || 'Failed to send friend request',
+        });
+      }
+    } catch (err) {
+      console.error('Error adding friend:', err);
+      setNotification({
+        type: 'error',
+        message: 'Failed to send friend request',
+      });
+    }
+  };
+
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/friends/accept/${requestId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setNotification({
+          type: 'success',
+          message: 'Friend request accepted!',
+        });
+        await loadFriends();
+        await loadFriendRequests();
+      } else {
+        const data = await res.json();
+        setNotification({
+          type: 'error',
+          message: data.error || 'Failed to accept request',
+        });
+      }
+    } catch (err) {
+      console.error('Error accepting request:', err);
+      setNotification({
+        type: 'error',
+        message: 'Failed to accept request',
+      });
+    }
+  };
+
+  const handleDeclineRequest = async (requestId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/friends/decline/${requestId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setNotification({
+          type: 'success',
+          message: 'Friend request declined',
+        });
+        await loadFriendRequests();
+      } else {
+        const data = await res.json();
+        setNotification({
+          type: 'error',
+          message: data.error || 'Failed to decline request',
+        });
+      }
+    } catch (err) {
+      console.error('Error declining request:', err);
+      setNotification({
+        type: 'error',
+        message: 'Failed to decline request',
+      });
     }
   };
 
@@ -60,29 +225,102 @@ function Friends() {
   };
 
   // Create the new group
-  const handleSaveGroup = (e) => {
+  const handleSaveGroup = async (e) => {
     e.preventDefault();
     if (!newGroupName.trim() || groupMembers.length === 0) {
       alert('Please provide a group name and select at least one friend.');
       return;
     }
 
-    const newGroup = {
-      id: `g${groups.length + 1}`,
-      name: newGroupName,
-      members: groupMembers,
-    };
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:4000/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newGroupName,
+          memberIds: groupMembers
+        })
+      });
 
-    setGroups(prevGroups => [...prevGroups, newGroup]);
-    
-    // Reset form
-    setShowCreateGroup(false);
-    setNewGroupName('');
-    setGroupMembers([]);
+      if (res.ok) {
+        // Reload groups
+        await loadGroups();
+        
+        // Reset form
+        setShowCreateGroup(false);
+        setNewGroupName('');
+        setGroupMembers([]);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to create group');
+      }
+    } catch (err) {
+      console.error('Error creating group:', err);
+      alert('Failed to create group');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="friends-page-container">
+      {/* --- Toast Notification (corner) --- */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            className={`toast-notification toast-${notification.type}`}
+            initial={{ opacity: 0, x: 300 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 300 }}
+            transition={{ duration: 0.3 }}
+          >
+            <span>{notification.message}</span>
+            <button onClick={() => setNotification(null)}>&times;</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Friend Requests Banner (top of page) --- */}
+      {friendRequests.length > 0 && (
+        <motion.div
+          className="friend-requests-banner"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h3>🔔 Friend Requests ({friendRequests.length})</h3>
+          <ul className="requests-list">
+            {friendRequests.map((request) => (
+              <li key={request.requestId} className="request-item">
+                <img 
+                  src={`https://placehold.co/40x40/7c3aed/ffffff?text=${request.name[0]}`} 
+                  alt={request.name} 
+                />
+                <span>{request.name}</span>
+                <div className="request-actions">
+                  <button 
+                    className="accept-btn" 
+                    onClick={() => handleAcceptRequest(request.requestId)}
+                  >
+                    Accept
+                  </button>
+                  <button 
+                    className="decline-btn" 
+                    onClick={() => handleDeclineRequest(request.requestId)}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+      )}
+
       {/* --- Main Content Grid --- */}
       <div className="friends-grid">
         
@@ -91,8 +329,8 @@ function Friends() {
           <div className="sidebar-widget">
             <h3>My Friends</h3>
             <ul className="user-list">
-              {friendObjects.length > 0 ? (
-                friendObjects.map(friend => (
+              {friends.length > 0 ? (
+                friends.map(friend => (
                   <li key={friend.id} className="user-list-item">
                     <img src={`https://placehold.co/40x40/7c3aed/ffffff?text=${friend.name[0]}`} alt={friend.name} />
                     <span>{friend.name}</span>
@@ -130,8 +368,26 @@ function Friends() {
             />
             <ul className="user-list search-results">
               {searchResults.map(foundUser => {
-                const isFriend = friends.includes(foundUser.id);
-                const isSelf = foundUser.id === user?.id; // Check if it's the current user
+                const isSelf = foundUser.id === user?.id;
+                const status = foundUser.friendStatus; // "none", "pending", "received", "accepted"
+                
+                let buttonText = 'Add';
+                let buttonDisabled = false;
+                
+                if (isSelf) {
+                  buttonText = 'You';
+                  buttonDisabled = true;
+                } else if (status === 'accepted') {
+                  buttonText = 'Friends';
+                  buttonDisabled = true;
+                } else if (status === 'pending') {
+                  buttonText = 'Pending';
+                  buttonDisabled = true;
+                } else if (status === 'received') {
+                  buttonText = 'Respond';
+                  buttonDisabled = false;
+                }
+                
                 return (
                   <li key={foundUser.id} className="user-list-item">
                     <img src={`https://placehold.co/40x40/a7a7a7/ffffff?text=${foundUser.name[0]}`} alt={foundUser.name} />
@@ -139,9 +395,9 @@ function Friends() {
                     <button
                       className="add-friend-btn"
                       onClick={() => handleAddFriend(foundUser.id)}
-                      disabled={isFriend || isSelf} // Disable if already friend or is self
+                      disabled={buttonDisabled}
                     >
-                      {isSelf ? 'You' : isFriend ? 'Friend' : 'Add'}
+                      {buttonText}
                     </button>
                   </li>
                 );
@@ -199,7 +455,7 @@ function Friends() {
 
                   <h4>Select Friends</h4>
                   <ul className="friend-select-list">
-                    {friendObjects.map(friend => (
+                    {friends.map(friend => (
                       <li
                         key={friend.id}
                         className={groupMembers.includes(friend.id) ? 'selected' : ''}

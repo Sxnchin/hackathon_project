@@ -260,14 +260,6 @@ function Login() {
               required
             />
 
-            {/* --- 5. ADD THE 'FORGOT PASSWORD' LINK (from auth.css) --- */}
-            <div className="forgot-password-container">
-              <Link to="/forgot-password" className="forgot-password-link">
-                Forgot Password?
-              </Link>
-            </div>
-
-
             <motion.button
               type="submit"
               className="login-btn-modern"
@@ -276,8 +268,7 @@ function Login() {
               whileTap={{ scale: (loading || isInCooldown) ? 1 : 0.97 }}
               style={{
                 opacity: isInCooldown ? 0.5 : 1,
-                cursor: isInCooldown ? 'not-allowed' : 'pointer',
-                marginTop: 0 /* Reset margin since 'forgot password' adds space */
+                cursor: isInCooldown ? 'not-allowed' : 'pointer'
               }}
             >
               {loading ? "Logging in..." : isInCooldown ? `Locked (${formatTimeRemaining(cooldownTimeRemaining)})` : "Log In"}
@@ -308,16 +299,25 @@ function Login() {
         </div> {/* --- End of login-body-grid --- */}
 
 
-        <p className="text-center mt-10 text-gray-600">
-          Don’t have an account?{" "}
-          <Link to="/get-started" className="login-link">
-            Sign Up
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            justifyContent: "center",
+            marginTop: "2rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <Link to="/get-started" className="back-link-modern">
+            Don't have an account? Sign Up
           </Link>
-        </p>
-
-        <Link to="/" className="back-link-modern">
-          &larr; Back to Home
-        </Link>
+          <Link to="/forgot-password" className="back-link-modern">
+            Forgot Password?
+          </Link>
+          <Link to="/" className="back-link-modern">
+            &larr; Back to Home
+          </Link>
+        </div>
       </motion.div>
     </div>
   );

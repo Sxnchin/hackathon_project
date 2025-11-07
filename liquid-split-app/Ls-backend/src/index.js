@@ -12,6 +12,8 @@ import receiptsRoutes from "./routes/receipts.js";
 import authRoutes from "./routes/auth.js";
 import transactionsRoutes from "./routes/transactions.js";
 import stripeRoutes, { stripeWebhook } from "./routes/stripe.js";
+import friendsRoutes from "./routes/friends.js";
+import groupsRoutes from "./routes/groups.js";
 import { auth } from "./middleware/auth.js";
 
 dotenv.config();
@@ -88,6 +90,8 @@ app.use("/pots/:potId/receipts", auth, receiptsRoutes); // protected
 app.use("/pots", auth, potRoutes);              // protected
 app.use("/transactions", auth, transactionsRoutes); // protected
 app.use("/stripe", stripeRoutes);               // protected
+app.use("/friends", auth, friendsRoutes);       // protected
+app.use("/groups", auth, groupsRoutes);         // protected
 
 // ===== 404 Handler =====
 app.use((req, res) => {

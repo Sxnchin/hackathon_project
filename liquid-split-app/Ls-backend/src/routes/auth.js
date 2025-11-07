@@ -2,7 +2,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
-import { generateToken } from "../middleware/auth.js";
+import { generateToken, auth } from "../middleware/auth.js";
 import { validatePassword } from "../utils/passwordValidator.js";
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -81,6 +81,55 @@ router.get('/users', async (req, res) => {
     res.json({ users });
   } catch (err) {
     res.status(500).json({ error: 'Could not fetch users' });
+  }
+});
+
+// Change password (requires authentication)
+router.post("/change-password", auth, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Both current and new passwords are required" });
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({ 
+      where: { id: req.user.userId } 
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify current password
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ error: passwordValidation.error });
+    }
+
+    // Check if new password is different from current
+    const samePassword = await bcrypt.compare(newPassword, user.password);
+    if (samePassword) {
+      return res.status(400).json({ error: "New password must be different from current password" });
+    }
+
+    // Hash and update password
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed },
+    });
+
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    next(err);
   }
 });
 
