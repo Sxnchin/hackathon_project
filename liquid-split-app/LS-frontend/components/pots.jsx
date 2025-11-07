@@ -11,21 +11,8 @@ function Pots() {
   const [shareDrafts, setShareDrafts] = useState({});
   const [feedback, setFeedback] = useState(null);
   const [collapsed, setCollapsed] = useState({ owned: false, participating: false });
-  const [sortOptions, setSortOptions] = useState({
-    owned: "latest",
-    participating: "latest",
-  });
-
-  const getStoredToken = useCallback(() => readToken(), [readToken]);
-
-  const getComparator = useCallback((mode) => {
-    if (mode === "largest") {
-      return (a, b) =>
-        Number(b.totalAmount ?? 0) - Number(a.totalAmount ?? 0);
-    }
-    return (a, b) =>
-      new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
-  }, []);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPotName, setNewPotName] = useState("");
 
   const fetchPots = useCallback(async () => {
     if (!user) {
@@ -96,6 +83,42 @@ function Pots() {
 
   const handleDraftChange = (potId, value) => {
     setShareDrafts((prev) => ({ ...prev, [potId]: value }));
+  };
+
+  const handleCreatePot = async () => {
+    if (!newPotName.trim()) {
+      setFeedback({ type: "error", message: "Pot name cannot be empty." });
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setFeedback({ type: "error", message: "Please log in to create a pot." });
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:4000/pots", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: newPotName.trim() }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to create pot.");
+      }
+
+      setFeedback({ type: "success", message: `Pot "${newPotName}" created successfully!` });
+      setShowCreateModal(false);
+      setNewPotName("");
+      fetchPots();
+    } catch (err) {
+      setFeedback({ type: "error", message: err.message });
+    }
   };
 
   const handleDeletePot = async (potId, potName) => {
@@ -217,9 +240,28 @@ function Pots() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
       >
-        <h1>Your Pots</h1>
-        <p>View contributions, receipts, and adjust your share at any time.</p>
+        <div>
+          <h1>Your Pots</h1>
+          <p>View contributions, receipts, and adjust your share at any time.</p>
+        </div>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            padding: "0.75rem 1.5rem",
+            background: "#6366f1",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "1rem",
+            fontWeight: "500",
+            whiteSpace: "nowrap"
+          }}
+        >
+          + Create New Pot
+        </button>
       </motion.div>
 
       {feedback && (
@@ -457,6 +499,88 @@ function Pots() {
               )}
             </section>
           )}
+        </div>
+      )}
+
+      {/* Create Pot Modal */}
+      {showCreateModal && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: "white",
+              borderRadius: "12px",
+              padding: "2rem",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Create New Pot</h2>
+            <p style={{ marginBottom: "1rem", color: "#666" }}>
+              Give your pot a name to get started.
+            </p>
+            <input
+              type="text"
+              placeholder="Enter pot name (e.g., 'Trip to Paris')"
+              value={newPotName}
+              onChange={(e) => setNewPotName(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleCreatePot()}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                fontSize: "1rem",
+                marginBottom: "1.5rem"
+              }}
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button 
+                onClick={() => setShowCreateModal(false)}
+                style={{
+                  padding: "0.6rem 1.25rem",
+                  border: "1px solid #ddd",
+                  borderRadius: "8px",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "0.95rem"
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreatePot}
+                style={{
+                  padding: "0.6rem 1.25rem",
+                  border: "none",
+                  borderRadius: "8px",
+                  background: "#6366f1",
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: "0.95rem",
+                  fontWeight: "500"
+                }}
+              >
+                Create Pot
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

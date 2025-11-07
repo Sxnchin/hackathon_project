@@ -17,13 +17,50 @@ model User {
   id              Int         @id @default(autoincrement())
   name            String
   email           String      @unique
-  password        String // bcrypt hashed password
+  password        String      // bcrypt hashed password
+  walletAddress   String?     @unique // Ethereum wallet address
+  role            UserRole    @default(USER)
   balance         Float       @default(0)
   stripeAccountId String?     @unique
+  isActive        Boolean     @default(true)
+  emailVerified   Boolean     @default(false)
+  lastLogin       DateTime?
+  refreshToken    String?     // JWT refresh token
   createdPots     Pot[]       @relation("UserCreatedPots")
   pots            PotMember[] // pots user participates in
   receipts        Receipt[]   @relation("UserReceipts") // receipts paid by this user
+  auditLogs       AuditLog[]  // security audit trail
   createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// =====================
+// 🔐 User Roles Enum
+// =====================
+enum UserRole {
+  ADMIN       // Full system access
+  USER        // Standard user
+  MODERATOR   // Can manage pots and receipts
+}
+
+// =====================
+// 📋 Audit Log Model
+// =====================
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   // e.g., "NFT_MINTED", "POT_CREATED", "USER_LOGIN"
+  resource   String?  // e.g., "Receipt:123", "Pot:45"
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?    // Additional context
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 // =====================
@@ -67,7 +104,32 @@ model Receipt {
   amount      Float
   timestamp   DateTime @default(now())
   description String?
+  merchantName String?
+  purchaseDate DateTime @default(now())
+  currency    String   @default("USD")
+  imageUrl    String?
+
+  // 🎨 NFT Fields - Enhanced for Production
+  nftMinted        Boolean   @default(false)
+  nftTokenId       String?   @unique
+  nftTxHash        String?
+  nftContractAddr  String?
+  nftIpfsHash      String?
+  nftMetadataUrl   String?
+  nftOwner         String?   // Ethereum address
+  nftMintedAt      DateTime?
+  nftOpenseaUrl    String?
+  nftEtherscanUrl  String?
+  nftVoucherSig    String?   // Lazy mint signature
+  nftVoucherNonce  String?   // Prevents replay attacks
+  nftClaimable     Boolean   @default(false) // If voucher created
+  nftClaimed       Boolean   @default(false) // If user claimed on-chain
 
   pot   Pot  @relation("PotReceipts", fields: [potId], references: [id], onDelete: Cascade)
   payer User @relation("UserReceipts", fields: [payerId], references: [id])
+
+  @@index([nftMinted])
+  @@index([nftClaimable])
+  @@index([potId])
+  @@index([payerId])
 }
