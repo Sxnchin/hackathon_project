@@ -153,7 +153,12 @@ class ProductionNFTService {
       const data = await response.json();
       return {
         ipfsHash: data.IpfsHash,
-        url: `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`,
+        // Using multiple reliable IPFS gateways
+        url: `https://ipfs.io/ipfs/${data.IpfsHash}`,
+        // Alternative gateways available:
+        // https://cloudflare-ipfs.com/ipfs/${data.IpfsHash}
+        // https://gateway.pinata.cloud/ipfs/${data.IpfsHash}
+        // https://dweb.link/ipfs/${data.IpfsHash}
       };
     } catch (error) {
       console.error('IPFS upload error:', error);
