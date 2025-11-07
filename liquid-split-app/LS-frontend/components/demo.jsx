@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import ReceiptNFTMint from "./ReceiptNFTMint";
+import WalletButton from "../src/components/WalletButton";
 
 /* ---------- ICONS ---------- */
 const CheckIcon = () => (
@@ -105,6 +107,10 @@ const getAuthHeaders = () => {
 /* ---------- MAIN DEMO ---------- */
 function Demo() {
   const [potId, setPotId] = useState(null);
+  const [potReady, setPotReady] = useState(false);
+  const [availablePots, setAvailablePots] = useState([]);
+  const [showPotSelector, setShowPotSelector] = useState(true);
+  const [newPotName, setNewPotName] = useState("");
   const [participants, setParticipants] = useState([]);
   const [splitStarted, setSplitStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -118,45 +124,121 @@ function Demo() {
   // but it's kept to maintain the structure of other logic if it relied on it.
   const [tempInput, setTempInput] = useState(""); 
 
-  /* --- Create Pot on Load --- */
+  /* --- Load Available Pots on Mount --- */
   useEffect(() => {
-    async function createPot() {
+    async function loadPots() {
       try {
-        const res = await fetch("http://localhost:4000/pots", {
-          method: "POST",
+        const potsRes = await fetch("http://localhost:4000/pots", {
           headers: getAuthHeaders(),
-          body: JSON.stringify({ name: "Demo Pot" }),
         });
 
-        if (res.status === 401) {
+        if (potsRes.status === 401) {
           setPopupData({
             title: "Login Required",
             message: "You must log in before starting a split.",
-            // This onConfirm doesn't take an input value
             onConfirm: () => (window.location.href = "/login"),
           });
           return;
         }
 
-        const data = await res.json();
-        const createdPot = data?.pot || data;
-        if (createdPot?.id) {
-          setPotId(createdPot.id);
-          window.dispatchEvent(new Event("pots:refresh"));
-        } else {
-          throw new Error("Invalid pot response");
-        }
+        const potsData = await potsRes.json();
+        setAvailablePots(potsData.pots || []);
       } catch (err) {
-        console.error("❌ Pot creation failed:", err);
+        console.error("❌ Failed to load pots:", err);
       }
     }
-    createPot();
+    loadPots();
   }, []);
+
+  /* --- Select or Create Pot --- */
+  const handleSelectPot = async (selectedPotId) => {
+    try {
+      setPotId(selectedPotId);
+      setShowPotSelector(false);
+      
+      // Load existing members for this pot
+      const potRes = await fetch(`http://localhost:4000/pots/${selectedPotId}`, {
+        headers: getAuthHeaders(),
+      });
+      const potData = await potRes.json();
+      
+      // Map existing members to participants format
+      const existingMembers = potData.members.map((m) => ({
+        id: m.userId,
+        name: m.user.name,
+        share: m.share,
+        status: "pending",
+      }));
+      
+      setParticipants(existingMembers);
+      const total = existingMembers.reduce((sum, m) => sum + parseFloat(m.share || 0), 0);
+      setTotal(total);
+      setPotReady(true);
+      
+      console.log("✅ Loaded pot:", selectedPotId, "with", existingMembers.length, "members");
+    } catch (err) {
+      console.error("❌ Failed to load pot:", err);
+      setPopupData({
+        title: "Error",
+        message: "Failed to load pot. Please try again.",
+      });
+    }
+  };
+
+  const handleCreateNewPot = async () => {
+    if (!newPotName.trim()) {
+      setPopupData({
+        title: "Invalid Input",
+        message: "Please enter a pot name.",
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:4000/pots", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name: newPotName.trim() }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create pot");
+      }
+
+      const data = await res.json();
+      const createdPot = data?.pot || data;
+      
+      if (createdPot?.id) {
+        console.log("✅ Created new pot:", createdPot.id);
+        setPotId(createdPot.id);
+        setShowPotSelector(false);
+        setPotReady(true);
+        setNewPotName("");
+        window.dispatchEvent(new Event("pots:refresh"));
+      }
+    } catch (err) {
+      console.error("❌ Pot creation failed:", err);
+      setPopupData({
+        title: "Error",
+        message: `Failed to create pot: ${err.message}`,
+      });
+    }
+  };
 
   /* ---------------------------------------------------------------------- */
   /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
   /* ---------------------------------------------------------------------- */
   const handleAddMember = useCallback(() => {
+    // Check if pot is ready before allowing member addition
+    if (!potId) {
+      setPopupData({
+        title: "Please Wait",
+        message: "Demo Pot is loading... Please try again in a moment.",
+      });
+      return;
+    }
+
     setPopupData({
       title: "Add Member",
       message: "Enter the name of a registered user:",
@@ -180,7 +262,7 @@ function Demo() {
       // setInputValue is no longer strictly needed but kept as placeholder
       setInputValue: setTempInput, 
     });
-  }, [setPopupData]); // Dependencies for useCallback
+  }, [potId, setPopupData]); // Added potId dependency
 
   const proceedAddMember = async (name) => {
     try {
@@ -234,26 +316,35 @@ function Demo() {
       });
     } catch (err) {
       console.error("❌ Add member failed:", err);
+      setPopupData({
+        title: "Error",
+        message: err.message || "Failed to add member. Please try again.",
+      });
     }
   };
 
   const addMemberToPot = async (user, share) => {
     try {
       if (!potId) {
+        console.error("❌ No pot ID available. Current potId:", potId);
         setPopupData({
           title: "Error",
-          message: "Please create a pot first.",
+          message: "Demo Pot not ready yet. Please refresh the page and try again.",
         });
         return;
       }
 
+      console.log("📤 Adding member to pot:", { potId, userId: user.id, share });
       const res = await fetch(`http://localhost:4000/pots/${potId}/members`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({ userId: user.id, share }),
       });
 
-      if (!res.ok) throw new Error("Failed to add member to backend");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to add member to backend");
+      }
 
       await fetch("http://localhost:4000/auth/set-balance", {
         method: "POST",
@@ -289,7 +380,11 @@ function Demo() {
         message: `${user.name} has been added successfully!`,
       });
     } catch (err) {
-      console.error("❌ Add member failed:", err);
+      console.error("❌ Add member to pot failed:", err);
+      setPopupData({
+        title: "Failed to Add Member",
+        message: err.message || "Could not add member to pot. Please try again.",
+      });
     }
   };
 /* ---------------------------------------------------------------------- */
@@ -486,6 +581,7 @@ function Demo() {
             .toUpperCase();
 
           return {
+            ...receipt, // Include all receipt fields (nftMinted, nftClaimable, etc.)
             id: receipt.id,
             owner: receipt.payer?.name || "Unknown",
             value: Number(receipt.amount) || 0,
@@ -507,17 +603,143 @@ function Demo() {
 
   return (
     <div className="demo-page-container">
+      {/* Pot Selector Modal */}
+      {showPotSelector && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              padding: "2rem",
+              maxWidth: "500px",
+              width: "90%",
+              maxHeight: "80vh",
+              overflow: "auto"
+            }}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: "1rem" }}>Select or Create a Pot</h2>
+            
+            {/* Existing Pots */}
+            {availablePots.length > 0 && (
+              <>
+                <h3 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#666" }}>
+                  Use Existing Pot
+                </h3>
+                <div style={{ marginBottom: "1.5rem" }}>
+                  {availablePots.map((pot) => (
+                    <button
+                      key={pot.id}
+                      onClick={() => handleSelectPot(pot.id)}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        marginBottom: "0.5rem",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        background: "white",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{pot.name}</div>
+                        <div style={{ fontSize: "0.85rem", color: "#666" }}>
+                          {pot.members?.length || 0} members · ${pot.totalAmount?.toFixed(2) || "0.00"}
+                        </div>
+                      </div>
+                      <span style={{ color: "#6366f1" }}>→</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Create New Pot */}
+            <h3 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#666" }}>
+              Or Create New Pot
+            </h3>
+            <input
+              type="text"
+              placeholder="Enter pot name (e.g., 'Weekend Trip')"
+              value={newPotName}
+              onChange={(e) => setNewPotName(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleCreateNewPot()}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                fontSize: "1rem",
+                marginBottom: "1rem"
+              }}
+            />
+            <button 
+              onClick={handleCreateNewPot}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                border: "none",
+                borderRadius: "8px",
+                background: "#6366f1",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "1rem",
+                fontWeight: "500"
+              }}
+            >
+              Create New Pot
+            </button>
+          </div>
+        </div>
+      )}
+
       <motion.div
         className="demo-card-modern"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="demo-header">
-          <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
-          <p className="text-gray-500 mt-2">
-            Add members, approve payments, and generate receipts.
-          </p>
+        <div className="demo-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
+            <p className="text-gray-500 mt-2">
+              Add members, approve payments, and generate receipts.
+            </p>
+            {potReady && (
+              <button
+                onClick={() => setShowPotSelector(true)}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.5rem 1rem",
+                  background: "transparent",
+                  border: "1px solid #6366f1",
+                  borderRadius: "6px",
+                  color: "#6366f1",
+                  cursor: "pointer",
+                  fontSize: "0.875rem"
+                }}
+              >
+                Change Pot
+              </button>
+            )}
+          </div>
+          <WalletButton />
         </div>
 
         <div className="demo-content-grid">
@@ -529,9 +751,10 @@ function Demo() {
                   <button
                     onClick={handleAddMember}
                     className="add-people action-btn-modern"
-                    style={{ marginLeft: "1rem" }}
+                    style={{ marginLeft: "1rem", opacity: potReady ? 1 : 0.5 }}
+                    disabled={!potReady}
                   >
-                    Add Member
+                    {potReady ? "Add Member" : "Loading..."}
                   </button>
                 )}
               </div>
@@ -621,7 +844,7 @@ function Demo() {
                 }}
               >
                 <h4 className="font-semibold text-gray-800 mb-3">Receipts</h4>
-                <div className="flex flex-col gap-4 items-center w-full max-w-md">
+                <div className="flex flex-col gap-4 items-center w-full max-w-2xl">
                   {receipts.map((r, i) => (
                     <motion.div
                       key={i}
@@ -636,21 +859,60 @@ function Demo() {
                         ],
                       }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
-                      className="receipt-card-modern border border-gray-200 rounded-xl bg-white shadow-sm p-3 w-full relative"
+                      className="receipt-card-modern border border-gray-200 rounded-xl bg-white shadow-sm p-4 w-full relative"
                     >
-                      <h5 className="font-semibold text-gray-900 text-base mb-1">
-                        {r.owner} — ${r.value.toFixed(2)}
-                      </h5>
-                      <p className="text-gray-600 text-xs">
-                        Ownership: <span className="font-medium">{r.ownership}</span>
-                      </p>
-                      <p className="text-[11px] text-gray-400 truncate mt-1">NFT ID: {r.nftId}</p>
-                      <p className="text-[10px] text-gray-500 font-mono mt-1">
-                        Tx Hash: {r.txHash}
-                      </p>
-                      <p className="text-[10px] text-gray-400 italic mt-1">
-                        Issued {new Date(r.timestamp).toLocaleString()}
-                      </p>
+                      <div className="mb-3">
+                        <h5 className="font-semibold text-gray-900 text-base mb-1">
+                          {r.owner} — ${r.value.toFixed(2)}
+                        </h5>
+                        <p className="text-gray-600 text-xs">
+                          Ownership: <span className="font-medium">{r.ownership}</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400 italic mt-1">
+                          Issued {new Date(r.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+
+                      {/* NFT Minting Integration */}
+                      <ReceiptNFTMint 
+                        receipt={r} 
+                        potId={potId} 
+                        onSuccess={() => {
+                          // Refresh receipts after NFT action
+                          const fetchUpdated = async () => {
+                            try {
+                              const response = await fetch(
+                                `http://localhost:4000/pots/${potId}/receipts`,
+                                { headers: getAuthHeaders() }
+                              );
+                              const data = await response.json();
+                              if (Array.isArray(data.receipts)) {
+                                const fallbackOwnership = `${(100 / Math.max(participants.length, 1)).toFixed(2)}%`;
+                                const hydrated = data.receipts.map((receipt) => {
+                                  let metadata = {};
+                                  try {
+                                    if (receipt.description) metadata = JSON.parse(receipt.description);
+                                  } catch (err) {}
+                                  const baseId = receipt.id.toString(16).padStart(8, "0").toUpperCase();
+                                  return {
+                                    ...receipt,
+                                    owner: receipt.payer?.name || "Unknown",
+                                    value: Number(receipt.amount) || 0,
+                                    ownership: metadata.ownership || fallbackOwnership,
+                                    nftId: metadata.nftId || `0x${baseId}`,
+                                    timestamp: receipt.timestamp,
+                                    txHash: `0x${baseId}`,
+                                  };
+                                });
+                                setReceipts(hydrated);
+                              }
+                            } catch (err) {
+                              console.error("Failed to refresh receipts:", err);
+                            }
+                          };
+                          fetchUpdated();
+                        }} 
+                      />
                     </motion.div>
                   ))}
                 </div>

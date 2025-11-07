@@ -25,7 +25,7 @@ ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
 ADD COLUMN     "lastLogin" TIMESTAMP(3),
 ADD COLUMN     "refreshToken" TEXT,
 ADD COLUMN     "role" "UserRole" NOT NULL DEFAULT 'USER',
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL,
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN     "walletAddress" TEXT;
 
 -- CreateTable

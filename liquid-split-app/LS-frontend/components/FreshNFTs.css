@@ -18,6 +18,10 @@
   margin-bottom: 30px;
   position: relative;
   overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
 }
 
 .nft-header::before {
@@ -32,6 +36,12 @@
 }
 
 .header-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+}
+
+.header-wallet {
   position: relative;
   z-index: 1;
 }

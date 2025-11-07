@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import WalletButton from '../src/components/WalletButton';
+import ReceiptNFTMint from './ReceiptNFTMint';
 import './FreshNFTs.css';
 
 /**
@@ -10,7 +12,6 @@ const FreshNFTs = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [mintingId, setMintingId] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -36,40 +37,6 @@ const FreshNFTs = () => {
       setError(error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const mintNFT = async (receiptId) => {
-    const walletAddress = prompt('Enter your Ethereum wallet address:');
-    if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      alert('Please enter a valid Ethereum address');
-      return;
-    }
-
-    try {
-      setMintingId(receiptId);
-      
-      const response = await fetch(`http://localhost:4000/pots/${potId}/receipts/${receiptId}/mint`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ownerAddress: walletAddress }),
-      });
-
-      const result = await response.json();
-      
-      if (response.ok) {
-        alert(`🎉 NFT minted successfully!\n\nToken ID: ${result.nft.tokenId}\nView on OpenSea: ${result.nft.opensea}`);
-        fetchData(); // Refresh data
-      } else {
-        throw new Error(result.error || 'Failed to mint NFT');
-      }
-    } catch (error) {
-      alert(`❌ Minting failed: ${error.message}`);
-    } finally {
-      setMintingId(null);
     }
   };
 
@@ -121,6 +88,9 @@ const FreshNFTs = () => {
           <Link to="/pots" className="back-link">← Back to Pots</Link>
           <h1>🎨 {pot.name} - NFT Collection</h1>
           <p>Transform your receipts into blockchain-verified NFTs</p>
+        </div>
+        <div className="header-wallet">
+          <WalletButton />
         </div>
       </div>
 
@@ -175,52 +145,11 @@ const FreshNFTs = () => {
                 </div>
 
                 {/* NFT Section */}
-                <div className="nft-section">
-                  {receipt.nftMinted ? (
-                    // NFT Already Exists
-                    <div className="nft-minted">
-                      <div className="nft-badge">✨ NFT Minted</div>
-                      
-                      <div className="nft-details">
-                        <p><strong>Token ID:</strong> {receipt.nftTokenId}</p>
-                        <p><strong>Owner:</strong> {formatAddress(receipt.nftOwner)}</p>
-                        <p><strong>Minted:</strong> {formatDate(receipt.nftMintedAt)}</p>
-                      </div>
-
-                      <div className="nft-links">
-                        {receipt.nftMetadataUrl && (
-                          <a href={receipt.nftMetadataUrl} target="_blank" rel="noopener noreferrer" className="nft-link">
-                            📄 Metadata
-                          </a>
-                        )}
-                        {receipt.nftOpenseaUrl && (
-                          <a href={receipt.nftOpenseaUrl} target="_blank" rel="noopener noreferrer" className="nft-link">
-                            🌊 OpenSea
-                          </a>
-                        )}
-                        {receipt.nftEtherscanUrl && (
-                          <a href={receipt.nftEtherscanUrl} target="_blank" rel="noopener noreferrer" className="nft-link">
-                            🔗 Etherscan
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    // Mint NFT Option
-                    <div className="nft-mint">
-                      <p className="mint-description">
-                        Turn this receipt into a blockchain NFT for permanent ownership proof.
-                      </p>
-                      <button 
-                        onClick={() => mintNFT(receipt.id)}
-                        disabled={mintingId === receipt.id}
-                        className="mint-button"
-                      >
-                        {mintingId === receipt.id ? '⏳ Minting...' : '🎨 Mint NFT'}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <ReceiptNFTMint 
+                  receipt={receipt} 
+                  potId={potId} 
+                  onSuccess={fetchData} 
+                />
               </div>
             ))}
           </div>

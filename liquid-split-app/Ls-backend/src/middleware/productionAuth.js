@@ -226,7 +226,14 @@ export function verifyOwnership(resourceType, paramName) {
         });
       }
 
-      const resourceId = parseInt(req.params[paramName]);
+      // Support both req.params and req.body (e.g., 'body.receiptId')
+      let resourceId;
+      if (paramName.startsWith('body.')) {
+        const bodyKey = paramName.replace('body.', '');
+        resourceId = parseInt(req.body[bodyKey]);
+      } else {
+        resourceId = parseInt(req.params[paramName]);
+      }
       
       if (!resourceId) {
         return res.status(400).json({
