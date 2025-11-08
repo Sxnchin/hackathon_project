@@ -705,6 +705,22 @@ function Demo() {
             >
               Create New Pot
             </button>
+            <button
+              onClick={() => setShowPotSelector(false)}
+              style={{
+                width: "100%",
+                marginTop: "0.75rem",
+                padding: "0.75rem",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                background: "white",
+                color: "#555",
+                cursor: "pointer",
+                fontSize: "1rem",
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -721,23 +737,21 @@ function Demo() {
             <p className="text-gray-500 mt-2">
               Add members, approve payments, and generate receipts.
             </p>
-            {potReady && (
-              <button
-                onClick={() => setShowPotSelector(true)}
-                style={{
-                  marginTop: "0.5rem",
-                  padding: "0.5rem 1rem",
-                  background: "transparent",
-                  border: "1px solid #6366f1",
-                  borderRadius: "6px",
-                  color: "#6366f1",
-                  cursor: "pointer",
-                  fontSize: "0.875rem"
-                }}
-              >
-                Change Pot
-              </button>
-            )}
+            <button
+              onClick={() => setShowPotSelector(true)}
+              style={{
+                marginTop: "0.5rem",
+                padding: "0.5rem 1rem",
+                background: "transparent",
+                border: "1px solid #6366f1",
+                borderRadius: "6px",
+                color: "#6366f1",
+                cursor: "pointer",
+                fontSize: "0.875rem"
+              }}
+            >
+              {potReady ? "Change Pot" : "Select Pot"}
+            </button>
           </div>
           <WalletButton />
         </div>
