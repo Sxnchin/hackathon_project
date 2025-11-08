@@ -5,10 +5,11 @@
   top: 0;
   left: 0;
   width: 100%;
-  padding: 1.5rem 6%; /* Using your 6% padding */
+  /* reduce side padding so logo sits closer to the left edge */
+  padding: 1.5rem 3%;
   background: var(--hero-bg-dark, #081b29); /* Fallback to codepen color */
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start; /* we'll control centering/spacing inside */
   align-items: center;
   z-index: 100;
   transition: all 0.3s ease;
@@ -26,12 +27,20 @@
   display: flex;
   align-items: center;
   gap: 2rem;
+  /* allow navbar to take remaining space so we can align center/ right items */
+  flex: 1 1 auto;
+  justify-content: flex-end; /* push .nav-links to the right */
 }
 
 /* Container for "How it works", "Features" */
 .nav-center-links {
   display: flex;
   gap: 2.5rem;
+  /* absolutely center the middle links relative to the header */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* Container for "Profile", "Pots", etc. */
@@ -39,17 +48,24 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-left: auto; /* ensure action buttons are pushed to the far right */
 }
 
 .nav-center-links a {
   font-size: 1.1rem; /* From codepen */
   color: #ededed; /* From codepen */
   font-weight: 500;
-  transition: color 0.3s;
+  transition: color 0.3s ease-in-out;
 }
 
 .nav-center-links a:hover {
   color: var(--brand-primary, #00abf0); /* Use your brand, fallback to codepen */
+}
+/* Hover state for the underline */
+.nav-center-links a:hover::after {
+  /* Animate the underline to full width */
+  transform: scaleX(1); 
+  transform-origin: bottom left; /* Not strictly needed here, but good for clarity */
 }
 
 /* Hamburger Menu Icon */
@@ -94,6 +110,78 @@
   border-color: var(--brand-secondary, #00abf0);
   color: var(--brand-secondary, #00abf0) !important;
 }
+/* Profile dropdown styles */
+.profile-container {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.profile-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.02); }
+
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.profile-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #e6eef8;
+}
+
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 200px;
+  background: linear-gradient(180deg, rgba(12,18,25,0.98), rgba(6,10,14,0.98));
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 200;
+}
+
+.profile-menu-item {
+  background: transparent;
+  color: #dbeafe;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.profile-menu-item:hover {
+  background: rgba(255,255,255,0.03);
+  color: #fff;
+}
+
+.profile-menu-sep {
+  height: 1px;
+  background: rgba(255,255,255,0.03);
+  margin: 6px 0;
+}
 /* --- END OF YOUR BUTTON STYLES --- */
 
 /* --- MOBILE & RESPONSIVE STYLES --- */
@@ -128,6 +216,14 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 1.5rem;
+  }
+
+  /* On mobile, center links should flow normally in the stacked menu */
+  .nav-center-links {
+    position: static;
+    transform: none;
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .navbar.active {

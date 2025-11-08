@@ -18,6 +18,7 @@ function Friends() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notification, setNotification] = useState(null); // Toast notification
+  const [processingRequests, setProcessingRequests] = useState({});
 
   // --- Load friends and groups on mount ---
   useEffect(() => {
@@ -135,10 +136,10 @@ function Friends() {
           type: 'success',
           message: 'Friend request sent!',
         });
-        // Reload search results
-        if (searchTerm) {
-          await searchUsers();
-        }
+        // Optimistically update the searchResults so the button shows "Pending"
+        setSearchResults(prev => prev.map(u => u.id === friendId ? { ...u, friendStatus: 'pending' } : u));
+        // Also reload friend requests in background
+        loadFriendRequests().catch(() => {});
       } else {
         setNotification({
           type: 'error',
@@ -212,6 +213,62 @@ function Friends() {
         type: 'error',
         message: 'Failed to decline request',
       });
+    }
+  };
+
+  // Accept/Decline directly from search results (uses requestId returned by search)
+  const handleAcceptFromSearch = async (requestId, userId) => {
+    try {
+      setProcessingRequests(p => ({ ...p, [requestId]: true }));
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/friends/accept/${requestId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setNotification({ type: 'success', message: 'Friend request accepted!' });
+        // update UI: mark user as accepted and reload friends
+        setSearchResults(prev => prev.map(u => u.id === userId ? { ...u, friendStatus: 'accepted', friendRequestId: null } : u));
+        await loadFriends();
+        await loadFriendRequests();
+      } else {
+        const data = await res.json();
+        setNotification({ type: 'error', message: data.error || 'Failed to accept' });
+      }
+    } catch (err) {
+      console.error('Error accepting from search:', err);
+      setNotification({ type: 'error', message: 'Failed to accept' });
+    }
+    finally {
+      setProcessingRequests(p => ({ ...p, [requestId]: false }));
+    }
+  };
+
+  const handleDeclineFromSearch = async (requestId, userId) => {
+    try {
+      setProcessingRequests(p => ({ ...p, [requestId]: true }));
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/friends/decline/${requestId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        setNotification({ type: 'success', message: 'Friend request declined' });
+        // update UI: mark user as none and reload requests
+        setSearchResults(prev => prev.map(u => u.id === userId ? { ...u, friendStatus: 'none', friendRequestId: null } : u));
+        await loadFriendRequests();
+      } else {
+        const data = await res.json();
+        setNotification({ type: 'error', message: data.error || 'Failed to decline' });
+      }
+    } catch (err) {
+      console.error('Error declining from search:', err);
+      setNotification({ type: 'error', message: 'Failed to decline' });
+    }
+    finally {
+      setProcessingRequests(p => ({ ...p, [requestId]: false }));
     }
   };
 
@@ -392,13 +449,41 @@ function Friends() {
                   <li key={foundUser.id} className="user-list-item">
                     <img src={`https://placehold.co/40x40/a7a7a7/ffffff?text=${foundUser.name[0]}`} alt={foundUser.name} />
                     <span>{foundUser.name} <small>({foundUser.email})</small></span>
-                    <button
-                      className="add-friend-btn"
-                      onClick={() => handleAddFriend(foundUser.id)}
-                      disabled={buttonDisabled}
-                    >
-                      {buttonText}
-                    </button>
+                    {status === 'received' && foundUser.friendRequestId ? (
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #6b7280)', marginRight: '0.5rem' }}>
+                          {foundUser.friendRequestCreatedAt ? new Date(foundUser.friendRequestCreatedAt).toLocaleString() : ''}
+                        </div>
+                        <button
+                          className="add-friend-btn"
+                          onClick={() => handleAcceptFromSearch(foundUser.friendRequestId, foundUser.id)}
+                          disabled={processingRequests[foundUser.friendRequestId]}
+                        >
+                          {processingRequests[foundUser.friendRequestId] ? (
+                            <span className="spinner" />
+                          ) : 'Accept'}
+                        </button>
+                        <button
+                          className="add-friend-btn"
+                          style={{ background: '#ef4444', borderColor: '#ef4444' }}
+                          onClick={() => handleDeclineFromSearch(foundUser.friendRequestId, foundUser.id)}
+                          disabled={processingRequests[foundUser.friendRequestId]}
+                        >
+                          {processingRequests[foundUser.friendRequestId] ? (
+                            <span className="spinner" />
+                          ) : 'Decline'}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="add-friend-btn"
+                        onClick={() => handleAddFriend(foundUser.id)}
+                        disabled={buttonDisabled}
+                        style={{ marginLeft: 'auto' }}
+                      >
+                        {buttonText}
+                      </button>
+                    )}
                   </li>
                 );
               })}

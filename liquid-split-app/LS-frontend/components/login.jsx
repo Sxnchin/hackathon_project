@@ -176,8 +176,21 @@ function Login() {
 
   // Dummy handler for social logins
   const handleSocialLogin = (provider) => {
-    alert(`${provider} login is not set up yet!`);
-    // In a real app, you'd trigger your OAuth flow here
+    try {
+      const backendFromWindow = (typeof window !== 'undefined' && window.__BACKEND_URL__) || null;
+      const backendFromVite = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_URL ? import.meta.env.VITE_BACKEND_URL : null;
+      const backend = backendFromWindow || backendFromVite || 'http://localhost:4000';
+      console.log('[Login] social login clicked', provider, backend);
+      if (provider === 'Google') {
+        const url = `${backend.replace(/\/$/, '')}/auth/google`;
+        window.location.assign(url);
+        return;
+      }
+      alert(`${provider} login is not set up yet!`);
+    } catch (err) {
+      console.error('Error starting social login', err);
+      alert('Could not start social login. Check console for details.');
+    }
   };
 
 

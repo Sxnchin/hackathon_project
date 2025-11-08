@@ -13,8 +13,9 @@
 }
 
 .owners-hero { 
-  background: linear-gradient(darkblue, lightgrey); 
+  background: linear-gradient(hsl(240, 100%, 44%), rgb(47, 52, 110)); 
   color: white; 
+  
   text-align: center; 
   padding: 80px 20px; 
   /* REMOVED THIS: margin-bottom: 40px; 

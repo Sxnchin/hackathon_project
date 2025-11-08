@@ -1,5 +1,5 @@
 // nav.jsx
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./nav.css";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
@@ -7,8 +7,22 @@ import { useAuth } from "../src/utils/authContext";
 function Nav() {
   const location = useLocation();
   const nav = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isAuthenticated = Boolean(user);
+
+  // Profile dropdown state
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (!profileRef.current) return;
+      if (!profileRef.current.contains(e.target)) setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
 
   // State for the mobile menu
   const [menuOpen, setMenuOpen] = useState(false);
@@ -119,13 +133,28 @@ function Nav() {
 
           {/* Log In / Profile (Secondary, Outlined Button) */}
           {isAuthenticated ? (
-            <Link 
-              to="/profile" 
-              className="login-btn-nav"
-              onClick={() => setMenuOpen(false)}
-            >
-              Profile
-            </Link>
+            <div className="profile-container" ref={profileRef}>
+              <button
+                className="profile-btn"
+                onClick={() => { setProfileOpen(!profileOpen); setMenuOpen(false); }}
+                aria-haspopup="true"
+                aria-expanded={profileOpen}
+              >
+                <img src={user?.avatar || `https://api.dicebear.com/5.x/identicon/svg?seed=${encodeURIComponent(user?.email||'user')}`} alt="avatar" className="profile-avatar" />
+                <span className="profile-name">{user?.name || user?.email?.split('@')[0]}</span>
+              </button>
+
+              {profileOpen && (
+                <div className="profile-menu" role="menu">
+                  <button className="profile-menu-item" onClick={() => { nav('/profile'); setProfileOpen(false); }}>Profile</button>
+                  <button className="profile-menu-item" onClick={() => { nav('/profile#change-email'); setProfileOpen(false); }}>Change Email</button>
+                  <button className="profile-menu-item" onClick={() => { nav('/profile#change-phone'); setProfileOpen(false); }}>Change Phone</button>
+                  <div className="profile-menu-sep" />
+                  <button className="profile-menu-item" onClick={() => { nav('/settings'); setProfileOpen(false); }}>Settings</button>
+                  <button className="profile-menu-item" onClick={() => { logout(); setProfileOpen(false); nav('/'); }}>Log Out</button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link 
               to="/login" 
