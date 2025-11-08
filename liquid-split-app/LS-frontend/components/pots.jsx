@@ -13,6 +13,25 @@ function Pots() {
   const [collapsed, setCollapsed] = useState({ owned: false, participating: false });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPotName, setNewPotName] = useState("");
+  const [sortOptions, setSortOptions] = useState({
+    owned: "latest",
+    participating: "latest",
+  });
+
+  const getStoredToken = useCallback(() => readToken?.(), [readToken]);
+
+  const getComparator = useCallback((sortType) => {
+    switch (sortType) {
+      case "largest":
+        return (a, b) =>
+          Number(b.totalAmount || 0) - Number(a.totalAmount || 0);
+      case "latest":
+      default:
+        return (a, b) =>
+          new Date(b.updatedAt || b.createdAt || 0) -
+          new Date(a.updatedAt || a.createdAt || 0);
+    }
+  }, []);
 
   const fetchPots = useCallback(async () => {
     if (!user) {

@@ -123,8 +123,7 @@ function Demo() {
   const [popupData, setPopupData] = useState(null);
   // tempInput state is no longer used for controlling the input value, 
   // but it's kept to maintain the structure of other logic if it relied on it.
-  const [tempInput, setTempInput] = useState(""); 
-  const [potName, setPotName] = useState("Demo Pot");
+  const [tempInput, setTempInput] = useState("");
 
   const hasRequestedPot = useRef(false);
 
@@ -233,8 +232,7 @@ function Demo() {
   /* ---------------------------------------------------------------------- */
   /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
   /* ---------------------------------------------------------------------- */
-  const handleAddMember = useCallback(() => {
-    // Check if pot is ready before allowing member addition
+  const handleAddMember = () => {
     if (!potId) {
       setPopupData({
         title: "Please Wait",
@@ -244,62 +242,27 @@ function Demo() {
     }
 
     setPopupData({
-      title: "Name Your Pot",
-      message: "Give this demo pot a name or goal (e.g., Rent, Family Trip).",
+      title: "Add Member",
+      message: "Enter the name of the member you'd like to add.",
       type: "input",
-      inputValue: potName || "",
+      placeholder: "e.g., Jane Doe",
+      inputValue: "",
       showCancel: true,
-      onConfirm: async (inputName) => {
-        const nextName = (inputName ?? "").trim();
-        if (!nextName) {
+      onConfirm: (inputName) => {
+        const trimmedName = (inputName ?? "").trim();
+        if (!trimmedName) {
           setPopupData({
             title: "Invalid Name",
-            message: "Pot name cannot be empty.",
+            message: "Member name cannot be empty.",
           });
           return;
         }
 
         setPopupData(null);
-        const ensuredPotId = potId ?? (await requestPotCreation(nextName));
-        if (!ensuredPotId) {
-          return;
-        }
-
-        try {
-          const response = await fetch(
-            `http://localhost:4000/pots/${ensuredPotId}`,
-            {
-              method: "PATCH",
-              headers: getAuthHeaders(),
-              body: JSON.stringify({ name: nextName }),
-            }
-          );
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(
-              data.error || "Unable to update the pot name right now."
-            );
-          }
-          const updatedName = data.pot?.name || nextName;
-          setPotId(ensuredPotId);
-          setPotName(updatedName);
-          window.dispatchEvent(new Event("pots:refresh"));
-          setPopupData({
-            title: "Pot Name Updated",
-            message: `This pot is now called "${updatedName}".`,
-          });
-        } catch (error) {
-          console.error("❌ Update pot name failed:", error);
-          setPopupData({
-            title: "Update Failed",
-            message:
-              error.message || "We couldn't update the pot name. Try again soon.",
-          });
-        }
+        proceedAddMember(trimmedName);
       },
-      setInputValue: setTempInput,
     });
-  }, [potId, setPopupData]); // Added potId dependency
+  };
 
   const proceedAddMember = async (name) => {
     try {
