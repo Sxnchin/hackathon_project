@@ -326,27 +326,32 @@ router.get("/search", auth, async (req, res) => {
 
     const receivedRequests = await prisma.friend.findMany({
       where: { friendId: userId },
-      select: { userId: true, status: true },
+      select: { id: true, userId: true, status: true, createdAt: true },
     });
 
-    // Build status maps
+    // Build status maps; store objects so we can include request id for received pending requests
     const friendStatusMap = new Map();
-    sentRequests.forEach((r) => friendStatusMap.set(r.friendId, r.status));
+    sentRequests.forEach((r) => friendStatusMap.set(r.friendId, { status: r.status }));
     receivedRequests.forEach((r) => {
-      if (!friendStatusMap.has(r.userId) || friendStatusMap.get(r.userId) !== "accepted") {
-        friendStatusMap.set(r.userId, r.status === "pending" ? "received" : r.status);
-      }
+      const existing = friendStatusMap.get(r.userId);
+      // If already accepted in sentRequests, keep accepted
+      if (existing && existing.status === 'accepted') return;
+      const status = r.status === 'pending' ? 'received' : r.status;
+      friendStatusMap.set(r.userId, { status, requestId: r.id, requestCreatedAt: r.createdAt });
     });
 
     const usersWithStatus = users.map((user) => {
-      const status = friendStatusMap.get(user.id) || "none";
-      const isExactMatch = 
-        user.name.toLowerCase() === searchLower || 
+      const entry = friendStatusMap.get(user.id) || { status: 'none' };
+      const status = entry.status;
+      const friendRequestId = entry.requestId || null;
+      const isExactMatch =
+        user.name.toLowerCase() === searchLower ||
         user.email.toLowerCase() === searchLower;
-      
+
       return {
         ...user,
         friendStatus: status, // "none", "pending", "received", "accepted"
+        friendRequestId,
         isExactMatch,
       };
     });

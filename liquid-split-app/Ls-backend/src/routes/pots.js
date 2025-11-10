@@ -30,11 +30,15 @@ router.post("/", auth, async (req, res) => {
     }
 
     const pot = await prisma.$transaction(async (tx) => {
+      // Use relation connect to attach the creator to the pot. Some Prisma
+      // client/schema combinations do not expose the scalar foreign key
+      // (creatorId) in the create input — using `creator: { connect: { id } }`
+      // works regardless of whether the scalar field is present.
+      // Create the pot first (without relation fields), then attach creator
       const createdPot = await tx.pot.create({
         data: {
           name,
           totalAmount: 0,
-          creatorId,
         },
       });
 
@@ -44,6 +48,9 @@ router.post("/", auth, async (req, res) => {
         update: {},
         create: { userId: creatorId, potId: createdPot.id, share: 0 },
       });
+
+      // Set the creator scalar on the pot via an update (avoids nested create/connect input shapes)
+      await tx.pot.update({ where: { id: createdPot.id }, data: { creatorId } });
 
       return tx.pot.findUnique({
         where: { id: createdPot.id },

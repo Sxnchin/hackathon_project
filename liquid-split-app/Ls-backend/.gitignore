@@ -50,3 +50,6 @@ build/
 coverage/
 tmp/
 .env
+
+#scripts
+/scripts/*.js
