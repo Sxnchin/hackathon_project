@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import "./demo.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import ReceiptNFTMint from "./ReceiptNFTMint";
-import WalletButton from "../src/components/WalletButton";
 
 /* ---------- ICONS ---------- */
 const CheckIcon = () => (
@@ -108,14 +107,9 @@ const getAuthHeaders = () => {
 /* ---------- MAIN DEMO ---------- */
 function Demo() {
   const [potId, setPotId] = useState(null);
-  const [potReady, setPotReady] = useState(false);
-  const [availablePots, setAvailablePots] = useState([]);
-  const [showPotSelector, setShowPotSelector] = useState(true);
-  const [newPotName, setNewPotName] = useState("");
   const [participants, setParticipants] = useState([]);
   const [splitStarted, setSplitStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [total, setTotal] = useState(0);
   const [receipts, setReceipts] = useState([]);
   const [authModal, setAuthModal] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -123,153 +117,348 @@ function Demo() {
   const [popupData, setPopupData] = useState(null);
   // tempInput state is no longer used for controlling the input value, 
   // but it's kept to maintain the structure of other logic if it relied on it.
-  const [tempInput, setTempInput] = useState("");
+  const [tempInput, setTempInput] = useState(""); 
+  const [potName, setPotName] = useState("Demo Pot");
+  const [groups, setGroups] = useState([]);
+  const [showGroupDropdown, setShowGroupDropdown] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [potCreatorId, setPotCreatorId] = useState(null);
+  const [connectionIssue, setConnectionIssue] = useState(false);
+  const [potStatus, setPotStatus] = useState("PENDING");
 
   const hasRequestedPot = useRef(false);
+  const consecutiveFailures = useRef(0);
 
-  /* --- Load Available Pots on Mount --- */
+  // Decode JWT to get current user ID
   useEffect(() => {
-    async function loadPots() {
+    const token = localStorage.getItem("token") || localStorage.getItem("liquidSplitToken");
+    if (token) {
       try {
-        const potsRes = await fetch("http://localhost:4000/pots", {
-          headers: getAuthHeaders(),
-        });
-
-        if (potsRes.status === 401) {
-          setPopupData({
-            title: "Login Required",
-            message: "You must log in before starting a split.",
-            onConfirm: () => (window.location.href = "/login"),
-          });
-          return;
-        }
-
-        const potsData = await potsRes.json();
-        setAvailablePots(potsData.pots || []);
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        setCurrentUserId(payload.userId);
       } catch (err) {
-        console.error("❌ Failed to load pots:", err);
+        console.error("Failed to decode token:", err);
       }
     }
-    loadPots();
   }, []);
 
-  /* --- Select or Create Pot --- */
-  const handleSelectPot = async (selectedPotId) => {
+  const requestPotCreation = useCallback(async (preferredName) => {
     try {
-      setPotId(selectedPotId);
-      setShowPotSelector(false);
-      
-      // Load existing members for this pot
-      const potRes = await fetch(`http://localhost:4000/pots/${selectedPotId}`, {
-        headers: getAuthHeaders(),
-      });
-      const potData = await potRes.json();
-      
-      // Map existing members to participants format
-      const existingMembers = potData.members.map((m) => ({
-        id: m.userId,
-        name: m.user.name,
-        share: m.share,
-        status: "pending",
-      }));
-      
-      setParticipants(existingMembers);
-      const total = existingMembers.reduce((sum, m) => sum + parseFloat(m.share || 0), 0);
-      setTotal(total);
-      setPotReady(true);
-      
-      console.log("✅ Loaded pot:", selectedPotId, "with", existingMembers.length, "members");
-    } catch (err) {
-      console.error("❌ Failed to load pot:", err);
-      setPopupData({
-        title: "Error",
-        message: "Failed to load pot. Please try again.",
-      });
-    }
-  };
+      const desiredName =
+        typeof preferredName === "string" && preferredName.trim().length > 0
+          ? preferredName.trim()
+          : "Demo Pot";
 
-  const handleCreateNewPot = async () => {
-    if (!newPotName.trim()) {
-      setPopupData({
-        title: "Invalid Input",
-        message: "Please enter a pot name.",
-      });
-      return;
-    }
-
-    try {
       const res = await fetch("http://localhost:4000/pots", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ name: newPotName.trim() }),
+        body: JSON.stringify({ name: desiredName }),
       });
+
+      if (res.status === 401) {
+        setPopupData({
+          title: "Login Required",
+          message: "You must log in before starting a split.",
+          onConfirm: () => (window.location.href = "/login"),
+        });
+        return null;
+      }
+
+      if (res.status === 429) {
+        setPopupData({
+          title: "Too Many Requests",
+          message: "Please wait a moment before trying again.",
+        });
+        return null;
+      }
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to create pot");
+        const errorText = await res.text();
+        console.error("Pot creation failed:", res.status, errorText);
+        throw new Error(`Server returned ${res.status}: ${errorText}`);
       }
 
-      const data = await res.json();
-      const createdPot = data?.pot || data;
-      
-      if (createdPot?.id) {
-        console.log("✅ Created new pot:", createdPot.id);
-        setPotId(createdPot.id);
-        setShowPotSelector(false);
-        setPotReady(true);
-        setNewPotName("");
-        window.dispatchEvent(new Event("pots:refresh"));
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error("Failed to parse JSON response:", parseError);
+        throw new Error("Invalid response from server");
       }
+
+      const createdPot = data?.pot || data;
+      if (!createdPot?.id) {
+        throw new Error("Invalid pot response - missing pot ID");
+      }
+
+      setPotId(createdPot.id);
+      setPotName(createdPot.name || desiredName);
+      setPotCreatorId(createdPot.creatorId || currentUserId);
+      window.dispatchEvent(new Event("pots:refresh"));
+      return createdPot.id;
     } catch (err) {
       console.error("❌ Pot creation failed:", err);
-      setPopupData({
-        title: "Error",
-        message: `Failed to create pot: ${err.message}`,
-      });
+      setPopupData((prev) =>
+        prev ?? {
+          title: "Error Creating Pot",
+          message: "We couldn’t create the demo pot. Please try again.",
+        }
+      );
+      return null;
     }
-  };
+  }, [setPopupData, currentUserId]);
+
+  /* --- Create Pot on Load (once) --- */
+  useEffect(() => {
+    if (!potId && !hasRequestedPot.current) {
+      hasRequestedPot.current = true;
+      requestPotCreation();
+    }
+  }, [potId, requestPotCreation]);
+
+  /* --- Load Groups on Mount --- */
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:4000/groups', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setGroups(data.groups || []);
+        }
+      } catch (err) {
+        console.error('Error loading groups:', err);
+      }
+    };
+    loadGroups();
+  }, []);
+
+  /* --- Poll Pot Data for Real-Time Updates --- */
+  useEffect(() => {
+    if (!potId) return;
+
+    const pollPotData = async () => {
+      try {
+        const potRes = await fetch(`http://localhost:4000/pots/${potId}`, {
+          headers: getAuthHeaders(),
+        });
+        
+        if (!potRes.ok) {
+          // Silently fail on rate limit or server errors during polling
+          if (potRes.status === 429 || potRes.status >= 500) {
+            console.warn(`Polling failed with status ${potRes.status}, will retry...`);
+            return;
+          }
+        }
+        
+        if (potRes.ok) {
+          let potData;
+          try {
+            potData = await potRes.json();
+          } catch (parseError) {
+            console.error("Failed to parse pot data JSON:", parseError);
+            return;
+          }
+          
+          // Update participants with latest payment status
+          if (potData.members && Array.isArray(potData.members)) {
+            setParticipants(
+              potData.members.map((m) => ({
+                id: m.userId,
+                name: m.user?.name || "Unknown",
+                status: "pending",
+                paymentStatus: m.paymentStatus || "PENDING",
+              }))
+            );
+          }
+
+          // Update pot name if changed
+          if (potData.name && potData.name !== potName) {
+            setPotName(potData.name);
+          }
+
+          // Update creator ID if not set
+          if (!potCreatorId && potData.creatorId) {
+            setPotCreatorId(potData.creatorId);
+          }
+
+          // Update pot status
+          if (potData.status) {
+            setPotStatus(potData.status);
+          }
+
+          // Reset failure counter on success
+          consecutiveFailures.current = 0;
+          setConnectionIssue(false);
+        }
+      } catch (err) {
+        // Network errors - track failures
+        consecutiveFailures.current += 1;
+        console.error("Failed to poll pot data (network error):", err.message);
+        
+        // Show warning after 3 consecutive failures
+        if (consecutiveFailures.current >= 3) {
+          setConnectionIssue(true);
+        }
+      }
+    };
+
+    // Poll immediately, then every 3 seconds
+    pollPotData();
+    const interval = setInterval(pollPotData, 3000);
+
+    // Listen for custom pot update events for immediate refresh
+    const handlePotUpdate = (e) => {
+      if (e.detail?.potId === potId) {
+        pollPotData();
+      }
+    };
+    window.addEventListener("pot:updated", handlePotUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("pot:updated", handlePotUpdate);
+    };
+  }, [potId, potName, potCreatorId]);
 
   /* ---------------------------------------------------------------------- */
   /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
   /* ---------------------------------------------------------------------- */
-  const handleAddMember = () => {
-    if (!potId) {
-      setPopupData({
-        title: "Please Wait",
-        message: "Demo Pot is loading... Please try again in a moment.",
-      });
-      return;
-    }
+  const addMemberToPot = useCallback(
+    async (user) => {
+      try {
+        let targetPotId = potId;
+        if (!targetPotId) {
+          targetPotId = await requestPotCreation();
+          if (!targetPotId) {
+            setPopupData({
+              title: "Error",
+              message: "Please create a pot first.",
+            });
+            return;
+          }
+        }
 
+        const res = await fetch(
+          `http://localhost:4000/pots/${targetPotId}/members`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ userId: user.id }),
+          }
+        );
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload.error || "Failed to add member to backend");
+        }
+
+        const potRes = await fetch(
+          `http://localhost:4000/pots/${targetPotId}`,
+          {
+            headers: getAuthHeaders(),
+          }
+        );
+        const potData = await potRes.json();
+
+        setPotName(potData.name || "Demo Pot");
+        setParticipants(
+          potData.members.map((m) => ({
+            id: m.userId,
+            name: m.user?.name || user.name,
+            status: "pending",
+          }))
+        );
+
+        setPopupData({
+          title: "Member Added",
+          message: `${user.name} has been added successfully!`,
+        });
+        setPotId(targetPotId);
+      } catch (err) {
+        console.error("❌ Add member failed:", err);
+        setPopupData({
+          title: "Add Member Failed",
+          message:
+            err.message ||
+            "We couldn't add that member. Please try again in a moment.",
+        });
+      }
+    },
+    [potId, requestPotCreation, setPopupData]
+  );
+
+  const handleSetPotName = useCallback(() => {
     setPopupData({
-      title: "Add Member",
-      message: "Enter the name of the member you'd like to add.",
+      title: "Name Your Pot",
+      message: "Give this demo pot a name or goal (e.g., Rent, Family Trip).",
       type: "input",
-      placeholder: "e.g., Jane Doe",
-      inputValue: "",
+      inputValue: potName || "",
       showCancel: true,
-      onConfirm: (inputName) => {
-        const trimmedName = (inputName ?? "").trim();
-        if (!trimmedName) {
+      onConfirm: async (inputName) => {
+        const nextName = (inputName ?? "").trim();
+        if (!nextName) {
           setPopupData({
             title: "Invalid Name",
-            message: "Member name cannot be empty.",
+            message: "Pot name cannot be empty.",
           });
           return;
         }
 
         setPopupData(null);
-        proceedAddMember(trimmedName);
-      },
-    });
-  };
+        const ensuredPotId = potId ?? (await requestPotCreation(nextName));
+        if (!ensuredPotId) {
+          return;
+        }
 
-  const proceedAddMember = async (name) => {
-    try {
-      const usersRes = await fetch("http://localhost:4000/auth/users", {
-        headers: getAuthHeaders(),
-      });
-      const { users } = await usersRes.json();
+        try {
+          const response = await fetch(
+            `http://localhost:4000/pots/${ensuredPotId}`,
+            {
+              method: "PATCH",
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ name: nextName }),
+            }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              data.error || "Unable to update the pot name right now."
+            );
+          }
+          const updatedName = data.pot?.name || nextName;
+          setPotId(ensuredPotId);
+          setPotName(updatedName);
+          window.dispatchEvent(new Event("pots:refresh"));
+          setPopupData({
+            title: "Pot Name Updated",
+            message: `This pot is now called "${updatedName}".`,
+          });
+        } catch (error) {
+          console.error("❌ Update pot name failed:", error);
+          setPopupData({
+            title: "Update Failed",
+            message:
+              error.message || "We couldn't update the pot name. Try again soon.",
+          });
+        }
+      },
+      setInputValue: setTempInput,
+    });
+  }, [potId, potName, requestPotCreation, setPopupData]);
+
+
+
+  const proceedAddMember = useCallback(
+    async (name) => {
+      try {
+        const usersRes = await fetch("http://localhost:4000/auth/users", {
+          headers: getAuthHeaders(),
+        });
+        const { users } = await usersRes.json();
 
         const user = users.find(
           (u) => u.name.toLowerCase() === name.toLowerCase()
@@ -282,123 +471,220 @@ function Demo() {
           return;
         }
 
-      setPopupData({
-        title: "Contribution",
-        message: `${user.name}'s current balance: $${user.balance.toFixed(
-          2
-        )}\nEnter amount to contribute:`,
-        type: "input",
-        inputType: "number",
-        inputValue: "", // Initial value for the contribution input
-        showCancel: true,
-        // *** MODIFIED: The function now accepts the input value 'shareString' ***
-        onConfirm: async (shareString) => {
-          const share = parseFloat(shareString);
-          if (isNaN(share) || share <= 0) {
-            setPopupData({
-              title: "Invalid Amount",
-              message: "Please enter a valid positive number.",
-            });
-            return;
-          }
-          if (share > user.balance) {
-            setPopupData({
-              title: "Insufficient Balance",
-              message: `${user.name} cannot contribute more than their balance.`,
-            });
-            return;
-          }
-          setPopupData(null);
-          await addMemberToPot(user, share);
-        },
-        // setInputValue is no longer strictly needed but kept as placeholder
-        setInputValue: setTempInput, 
-      });
-    } catch (err) {
-      console.error("❌ Add member failed:", err);
-      setPopupData({
-        title: "Error",
-        message: err.message || "Failed to add member. Please try again.",
-      });
-    }
-  };
-
-  const addMemberToPot = async (user, share) => {
-    try {
-      if (!potId) {
-        console.error("❌ No pot ID available. Current potId:", potId);
+        setPopupData(null);
+        await addMemberToPot(user);
+      } catch (err) {
+        console.error("❌ Add member failed:", err);
         setPopupData({
           title: "Error",
-          message: "Demo Pot not ready yet. Please refresh the page and try again.",
+          message: "We couldn't load users. Please try again later.",
+        });
+      }
+    },
+    [addMemberToPot, setPopupData]
+  );
+
+  const handleAddGroup = useCallback(() => {
+    if (groups.length === 0) {
+      setPopupData({
+        title: "No Groups Available",
+        message: "Please create a group first from the Friends page before starting a split.",
+        onConfirm: () => setPopupData(null),
+      });
+      return;
+    }
+    
+    if (selectedGroup) {
+      setPopupData({
+        title: "Group Already Added",
+        message: "You can only add one group per split. Remove the current group to add a different one.",
+        onConfirm: () => setPopupData(null),
+      });
+      return;
+    }
+    
+    setShowGroupDropdown(true);
+  }, [groups, selectedGroup, setPopupData]);
+
+  const handleSelectGroup = useCallback(async (group) => {
+    setShowGroupDropdown(false);
+    
+    // Add all group members to the pot
+    const failedMembers = [];
+    const skippedMembers = [];
+    
+    // Ensure pot exists first
+    let targetPotId = potId;
+    if (!targetPotId) {
+      targetPotId = await requestPotCreation();
+      if (!targetPotId) {
+        setPopupData({
+          title: "Error",
+          message: "Failed to create pot. Please try again.",
+        });
+        return;
+      }
+    }
+    
+    // Fetch current pot members to get accurate list
+    let existingMemberIds = new Set();
+    try {
+      const potRes = await fetch(`http://localhost:4000/pots/${targetPotId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (potRes.ok) {
+        const potData = await potRes.json();
+        existingMemberIds = new Set(potData.members.map(m => m.userId));
+      }
+    } catch (err) {
+      console.error("Failed to fetch pot members:", err);
+      // Fallback to participants state
+      existingMemberIds = new Set(participants.map(p => p.id));
+    }
+    
+    for (const member of group.members) {
+      const user = member.user;
+      
+      // Skip if user is already in the pot
+      if (existingMemberIds.has(user.id)) {
+        skippedMembers.push(user.name);
+        continue;
+      }
+      
+      try {
+
+        const res = await fetch(
+          `http://localhost:4000/pots/${targetPotId}/members`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ userId: user.id }),
+          }
+        );
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload.error || "Failed to add member");
+        }
+      } catch (err) {
+        failedMembers.push({ name: user.name, error: err.message });
+      }
+    }
+    
+    // Refresh pot data after all attempts and send notifications
+    if (targetPotId) {
+      try {
+        const potRes = await fetch(`http://localhost:4000/pots/${targetPotId}`, {
+          headers: getAuthHeaders(),
+        });
+        const potData = await potRes.json();
+        
+        // Update participants with payment status
+        setParticipants(
+          potData.members.map((m) => ({
+            id: m.userId,
+            name: m.user?.name || "Unknown",
+            status: "pending",
+            paymentStatus: m.paymentStatus || "PENDING",
+          }))
+        );
+
+        // Send notifications only to non-creator members
+        for (const member of potData.members) {
+          if (member.userId !== currentUserId) {
+            try {
+              await fetch("http://localhost:4000/notifications", {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                  userId: member.userId,
+                  potId: targetPotId,
+                  type: "PAYMENT_REQUEST",
+                  message: `You've been added to pot "${potData.name}". Please confirm your participation.`,
+                }),
+              });
+            } catch (err) {
+              console.error(`Failed to send notification to ${member.user?.name}:`, err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to refresh pot:", err);
+      }
+    }
+    
+    // Show results
+    if (failedMembers.length > 0) {
+      const errorMessages = failedMembers.map(m => `• ${m.name}: ${m.error}`).join('\n');
+      setPopupData({
+        title: "Some Members Could Not Be Added",
+        message: `The following members could not be added:\n\n${errorMessages}`,
+      });
+    } else {
+      setSelectedGroup(group);
+      setPopupData({
+        title: "Group Added",
+        message: `Members from "${group.name}" have been added successfully!`,
+      });
+    }
+  }, [potId, requestPotCreation, setPopupData, participants, currentUserId]);
+
+  const handleStartSplit = async () => {
+    if (!selectedGroup) {
+      setPopupData({
+        title: "No Group Added",
+        message: "Please add a group before starting the split!",
+      });
+      return;
+    }
+    
+    if (participants.length < 2) {
+      setPopupData({
+        title: "Not Enough Members",
+        message: "The selected group must have at least 2 members to start the split!",
+      });
+      return;
+    }
+
+    // Call finalize endpoint to check if all members have paid
+    try {
+      const res = await fetch(`http://localhost:4000/pots/${potId}/finalize`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPopupData({
+          title: "Cannot Finalize",
+          message: data.error || "Unable to finalize the pot. Please try again.",
         });
         return;
       }
 
-      console.log("📤 Adding member to pot:", { potId, userId: user.id, share });
-      const res = await fetch(`http://localhost:4000/pots/${potId}/members`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ userId: user.id, share }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to add member to backend");
-      }
-
-      await fetch("http://localhost:4000/auth/set-balance", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          email: user.email,
-          newBalance: user.balance - share,
-        }),
-      });
-
-      const potRes = await fetch(`http://localhost:4000/pots/${potId}`, {
-        headers: getAuthHeaders(),
-      });
-      const potData = await potRes.json();
-
-      setParticipants(
-        potData.members.map((m) => ({
-          id: m.userId,
-          name: user.name,
-          share: m.share,
-          status: "pending",
-        }))
-      );
-
-      const newTotal = potData.members.reduce(
-        (sum, m) => sum + parseFloat(m.share || 0),
-        0
-      );
-      setTotal(newTotal);
-
+      // Success - all members have paid
+      setSplitStarted(true);
+      setPotStatus("FINALIZED");
+      
+      // Trigger pots page refresh
+      window.dispatchEvent(new Event("pots:refresh"));
+      
       setPopupData({
-        title: "Member Added",
-        message: `${user.name} has been added successfully!`,
+        title: "Pot Finalized!",
+        message: "All members have confirmed payment. The pot has been saved to 'Your Pots' page.",
+        onConfirm: () => {
+          // Optionally redirect to pots page
+          window.location.href = "/pots";
+        },
       });
     } catch (err) {
-      console.error("❌ Add member to pot failed:", err);
+      console.error("Failed to finalize pot:", err);
       setPopupData({
-        title: "Failed to Add Member",
-        message: err.message || "Could not add member to pot. Please try again.",
+        title: "Error",
+        message: "Failed to finalize pot. Please try again.",
       });
     }
-  };
-/* ---------------------------------------------------------------------- */
-
-  /* --- Start Split --- */
-  const handleStartSplit = () => {
-    if (participants.length < 2) {
-      setPopupData({
-        title: "Not Enough Members",
-        message: "You need at least 2 members to start the split!",
-      });
-      return;
-    }
-    setSplitStarted(true);
   };
 
   /* --- Auth Modal Flow --- */
@@ -581,7 +867,6 @@ function Demo() {
             .toUpperCase();
 
           return {
-            ...receipt, // Include all receipt fields (nftMinted, nftClaimable, etc.)
             id: receipt.id,
             owner: receipt.payer?.name || "Unknown",
             value: Number(receipt.amount) || 0,
@@ -603,237 +888,284 @@ function Demo() {
 
   return (
     <div className="demo-page-container">
-      {/* Pot Selector Modal */}
-      {showPotSelector && (
-        <div 
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000
-          }}
-        >
-          <div 
-            style={{
-              backgroundColor: "white",
-              borderRadius: "16px",
-              padding: "2rem",
-              maxWidth: "500px",
-              width: "90%",
-              maxHeight: "80vh",
-              overflow: "auto"
-            }}
-          >
-            <h2 style={{ marginTop: 0, marginBottom: "1rem" }}>Select or Create a Pot</h2>
-            
-            {/* Existing Pots */}
-            {availablePots.length > 0 && (
-              <>
-                <h3 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#666" }}>
-                  Use Existing Pot
-                </h3>
-                <div style={{ marginBottom: "1.5rem" }}>
-                  {availablePots.map((pot) => (
-                    <button
-                      key={pot.id}
-                      onClick={() => handleSelectPot(pot.id)}
-                      style={{
-                        width: "100%",
-                        padding: "0.75rem 1rem",
-                        marginBottom: "0.5rem",
-                        border: "1px solid #ddd",
-                        borderRadius: "8px",
-                        background: "white",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{pot.name}</div>
-                        <div style={{ fontSize: "0.85rem", color: "#666" }}>
-                          {pot.members?.length || 0} members · ${pot.totalAmount?.toFixed(2) || "0.00"}
-                        </div>
-                      </div>
-                      <span style={{ color: "#6366f1" }}>→</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Create New Pot */}
-            <h3 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#666" }}>
-              Or Create New Pot
-            </h3>
-            <input
-              type="text"
-              placeholder="Enter pot name (e.g., 'Weekend Trip')"
-              value={newPotName}
-              onChange={(e) => setNewPotName(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleCreateNewPot()}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                fontSize: "1rem",
-                marginBottom: "1rem"
-              }}
-            />
-            <button 
-              onClick={handleCreateNewPot}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                border: "none",
-                borderRadius: "8px",
-                background: "#6366f1",
-                color: "white",
-                cursor: "pointer",
-                fontSize: "1rem",
-                fontWeight: "500"
-              }}
-            >
-              Create New Pot
-            </button>
-            <button
-              onClick={() => setShowPotSelector(false)}
-              style={{
-                width: "100%",
-                marginTop: "0.75rem",
-                padding: "0.75rem",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                background: "white",
-                color: "#555",
-                cursor: "pointer",
-                fontSize: "1rem",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       <motion.div
         className="demo-card-modern"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="demo-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
+        <div className="demo-header">
+          {connectionIssue && (
+            <div style={{
+              padding: "0.75rem 1rem",
+              background: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: "0.5rem",
+              marginBottom: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontSize: "0.9rem",
+              color: "#92400e",
+            }}>
+              <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+              <span>Connection issue detected. Some features may not update in real-time. Retrying...</span>
+            </div>
+          )}
+          <div className="demo-header-text">
             <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
             <p className="text-gray-500 mt-2">
               Add members, approve payments, and generate receipts.
             </p>
+          </div>
+          <div className="pot-name-controls">
+            <div className="pot-name-chip">
+              <span className="pot-name-label">Pot Name</span>
+              <strong>{potName?.trim() ? potName : "Demo Pot"}</strong>
+            </div>
             <button
-              onClick={() => setShowPotSelector(true)}
-              style={{
-                marginTop: "0.5rem",
-                padding: "0.5rem 1rem",
-                background: "transparent",
-                border: "1px solid #6366f1",
-                borderRadius: "6px",
-                color: "#6366f1",
-                cursor: "pointer",
-                fontSize: "0.875rem"
-              }}
+              type="button"
+              className="pot-name-btn"
+              onClick={handleSetPotName}
             >
-              {potReady ? "Change Pot" : "Select Pot"}
+              Set Pot Name
             </button>
           </div>
-          <WalletButton />
         </div>
 
         <div className="demo-content-grid">
           <div className="checkout-panel">
             <div className="participants-section">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h4 style={{ fontWeight: 600 }}>Participants</h4>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+                <h4 style={{ fontWeight: 600 }}>Groups</h4>
                 {!splitStarted && (
-                  <button
-                    onClick={handleAddMember}
-                    className="add-people action-btn-modern"
-                    style={{ marginLeft: "1rem", opacity: potReady ? 1 : 0.5 }}
-                    disabled={!potReady}
-                  >
-                    {potReady ? "Add Member" : "Loading..."}
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-3 mt-4">
-                {participants.length === 0 ? (
-                  <p className="text-gray-400 italic text-sm">
-                    No participants yet.
-                  </p>
-                ) : (
-                  participants.map((user) => (
-                    <div
-                      key={user.id}
-                      className="participant-row-modern flex items-center justify-between"
+                  <div style={{ position: "relative" }}>
+                    <button
+                      onClick={handleAddGroup}
+                      className="add-people action-btn-modern"
+                      style={{ marginLeft: "1rem" }}
                     >
-                      <span className="font-medium text-gray-700">
-                        {user.name}
-                      </span>
-                      <span className="text-gray-600 font-semibold">
-                        ${user.share.toFixed(2)}
-                      </span>
-                      {splitStarted && (
-                        user.status === "pending" ? (
-                          <div className="participant-actions">
-                            <button
-                              onClick={() => openAuthenticator(user)}
-                              className="pay-btn-modern"
-                            >
-                              Pay
-                            </button>
-                            <button
-                              onClick={() => handleWithdraw(user)}
-                              className="demo-withdraw-btn"
-                            >
-                              Withdraw
-                            </button>
+                      Add Group
+                    </button>
+                    
+                    {/* Group Dropdown */}
+                    {showGroupDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="group-dropdown"
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 0.5rem)",
+                          right: 0,
+                          background: "white",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "0.75rem",
+                          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
+                          minWidth: "250px",
+                          maxHeight: "300px",
+                          overflowY: "auto",
+                          zIndex: 100,
+                        }}
+                      >
+                        <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #e5e7eb", fontWeight: 600, fontSize: "0.9rem" }}>
+                          Select Your Group
+                        </div>
+                        {groups.filter(group => group.creatorId === currentUserId).length === 0 ? (
+                          <div style={{ padding: "1rem", textAlign: "center", color: "#6b7280", fontSize: "0.9rem" }}>
+                            You haven't created any groups yet
                           </div>
                         ) : (
-                          <CheckIcon />
-                        )
-                      )}
-                    </div>
-                  ))
+                          groups.filter(group => group.creatorId === currentUserId).map((group) => (
+                          <div
+                            key={group.id}
+                            onClick={() => handleSelectGroup(group)}
+                            style={{
+                              padding: "0.75rem 1rem",
+                              cursor: "pointer",
+                              borderBottom: "1px solid #f3f4f6",
+                              transition: "background 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#f9fafb"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "white"}
+                          >
+                            <div style={{ fontWeight: 500, marginBottom: "0.25rem" }}>{group.name}</div>
+                            <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                              {group.members.length} member{group.members.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        )))}
+                        <button
+                          onClick={() => setShowGroupDropdown(false)}
+                          style={{
+                            width: "100%",
+                            padding: "0.75rem",
+                            background: "#f9fafb",
+                            border: "none",
+                            borderTop: "1px solid #e5e7eb",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                            color: "#6b7280",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
                 )}
               </div>
+              
+              {/* Display Selected Group */}
+              {selectedGroup && (
+                <div style={{
+                  marginTop: "1rem",
+                  padding: "0.75rem 1rem",
+                  background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
+                  borderRadius: "0.75rem",
+                  color: "white",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}>
+                  <div style={{ fontWeight: 600 }}>
+                    {selectedGroup.name}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedGroup(null);
+                      setParticipants([]);
+                    }}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.2)",
+                      border: "none",
+                      color: "white",
+                      padding: "0.4rem 0.75rem",
+                      borderRadius: "0.5rem",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)"}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
 
-              {participants.length > 0 && (
-                <div className="mt-5 text-right text-gray-700 font-semibold">
-                  Total: ${total.toFixed(2)}
+              {!selectedGroup && (
+                <p className="text-gray-400 italic text-sm mt-4">
+                  No group added yet.
+                </p>
+              )}
+
+              {/* Display Participants with Payment Status */}
+              {selectedGroup && participants.length > 0 && (
+                <div style={{ marginTop: "1rem" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "0.75rem", fontSize: "0.95rem", color: "#374151" }}>
+                    Participants ({participants.length})
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {participants.map((participant) => (
+                      <div
+                        key={participant.id}
+                        style={{
+                          padding: "0.75rem",
+                          background: "white",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "0.5rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "1rem",
+                        }}
+                      >
+                        <div style={{ fontWeight: 500, color: "#1f2937", flex: 1 }}>{participant.name}</div>
+                        
+                        {/* Show Pay button for current user if status is PENDING */}
+                        {participant.id === currentUserId && participant.paymentStatus === "PENDING" ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`http://localhost:4000/pots/${potId}/members/${currentUserId}/payment-status`, {
+                                  method: "PATCH",
+                                  headers: getAuthHeaders(),
+                                  body: JSON.stringify({ status: "PAID" }),
+                                });
+                                
+                                if (res.ok) {
+                                  window.dispatchEvent(new CustomEvent("pot:updated", { detail: { potId } }));
+                                  setPopupData({
+                                    title: "Payment Confirmed",
+                                    message: "Your payment has been confirmed!",
+                                  });
+                                } else {
+                                  const data = await res.json();
+                                  setPopupData({
+                                    title: "Error",
+                                    message: data.error || "Failed to confirm payment",
+                                  });
+                                }
+                              } catch (err) {
+                                console.error("Failed to confirm payment:", err);
+                                setPopupData({
+                                  title: "Error",
+                                  message: "Failed to confirm payment. Please try again.",
+                                });
+                              }
+                            }}
+                            style={{
+                              padding: "0.5rem 1rem",
+                              background: "#10b981",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "0.5rem",
+                              cursor: "pointer",
+                              fontWeight: 600,
+                              fontSize: "0.85rem",
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#059669"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "#10b981"}
+                          >
+                            Confirm Payment
+                          </button>
+                        ) : (
+                          <div
+                            style={{
+                              padding: "0.25rem 0.75rem",
+                              borderRadius: "9999px",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              background: participant.paymentStatus === "PAID" ? "#d1fae5" : participant.paymentStatus === "DENIED" ? "#fee2e2" : "#fef3c7",
+                              color: participant.paymentStatus === "PAID" ? "#065f46" : participant.paymentStatus === "DENIED" ? "#991b1b" : "#92400e",
+                            }}
+                          >
+                            {participant.paymentStatus === "PAID" ? "✓ Paid" : participant.paymentStatus === "DENIED" ? "✗ Denied" : "⏱ Pending"}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
           <div className="action-panel-modern text-center">
-            {!splitStarted && !isComplete && (
+            {!splitStarted && !isComplete && potCreatorId === currentUserId && selectedGroup && (
               <button
                 onClick={handleStartSplit}
                 className="start-split-btn-modern mt-6"
               >
-                Start Split
+                Finalize & Start Split
               </button>
             )}
 
-            {splitStarted && !isComplete && (
+            {splitStarted && !isComplete && potStatus !== "FINALIZED" && (
               <p className="text-gray-500 mt-4">
                 Waiting for payments...{" "}
                 {participants.filter((p) => p.status === "paid").length} /{" "}
@@ -867,7 +1199,7 @@ function Demo() {
                 }}
               >
                 <h4 className="font-semibold text-gray-800 mb-3">Receipts</h4>
-                <div className="flex flex-col gap-4 items-center w-full max-w-2xl">
+                <div className="flex flex-col gap-4 items-center w-full max-w-md">
                   {receipts.map((r, i) => (
                     <motion.div
                       key={i}
@@ -882,60 +1214,21 @@ function Demo() {
                         ],
                       }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
-                      className="receipt-card-modern border border-gray-200 rounded-xl bg-white shadow-sm p-4 w-full relative"
+                      className="receipt-card-modern border border-gray-200 rounded-xl bg-white shadow-sm p-3 w-full relative"
                     >
-                      <div className="mb-3">
-                        <h5 className="font-semibold text-gray-900 text-base mb-1">
-                          {r.owner} — ${r.value.toFixed(2)}
-                        </h5>
-                        <p className="text-gray-600 text-xs">
-                          Ownership: <span className="font-medium">{r.ownership}</span>
-                        </p>
-                        <p className="text-[10px] text-gray-400 italic mt-1">
-                          Issued {new Date(r.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-
-                      {/* NFT Minting Integration */}
-                      <ReceiptNFTMint 
-                        receipt={r} 
-                        potId={potId} 
-                        onSuccess={() => {
-                          // Refresh receipts after NFT action
-                          const fetchUpdated = async () => {
-                            try {
-                              const response = await fetch(
-                                `http://localhost:4000/pots/${potId}/receipts`,
-                                { headers: getAuthHeaders() }
-                              );
-                              const data = await response.json();
-                              if (Array.isArray(data.receipts)) {
-                                const fallbackOwnership = `${(100 / Math.max(participants.length, 1)).toFixed(2)}%`;
-                                const hydrated = data.receipts.map((receipt) => {
-                                  let metadata = {};
-                                  try {
-                                    if (receipt.description) metadata = JSON.parse(receipt.description);
-                                  } catch (err) {}
-                                  const baseId = receipt.id.toString(16).padStart(8, "0").toUpperCase();
-                                  return {
-                                    ...receipt,
-                                    owner: receipt.payer?.name || "Unknown",
-                                    value: Number(receipt.amount) || 0,
-                                    ownership: metadata.ownership || fallbackOwnership,
-                                    nftId: metadata.nftId || `0x${baseId}`,
-                                    timestamp: receipt.timestamp,
-                                    txHash: `0x${baseId}`,
-                                  };
-                                });
-                                setReceipts(hydrated);
-                              }
-                            } catch (err) {
-                              console.error("Failed to refresh receipts:", err);
-                            }
-                          };
-                          fetchUpdated();
-                        }} 
-                      />
+                      <h5 className="font-semibold text-gray-900 text-base mb-1">
+                        {r.owner} — ${r.value.toFixed(2)}
+                      </h5>
+                      <p className="text-gray-600 text-xs">
+                        Ownership: <span className="font-medium">{r.ownership}</span>
+                      </p>
+                      <p className="text-[11px] text-gray-400 truncate mt-1">NFT ID: {r.nftId}</p>
+                      <p className="text-[10px] text-gray-500 font-mono mt-1">
+                        Tx Hash: {r.txHash}
+                      </p>
+                      <p className="text-[10px] text-gray-400 italic mt-1">
+                        Issued {new Date(r.timestamp).toLocaleString()}
+                      </p>
                     </motion.div>
                   ))}
                 </div>

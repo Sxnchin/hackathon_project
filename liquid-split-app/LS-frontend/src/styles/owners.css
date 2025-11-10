@@ -1,0 +1,194 @@
+/* Owners page styles */
+.ownersPage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.owners-page-container {
+    font-family: 'Inter', sans-serif;
+    color: #333;
+    background-color: #f8f8f8;
+    line-height: 1.6;
+    padding-top: 80px;
+}
+
+.owners-hero {
+    background: linear-gradient(darkblue, lightgrey);
+    color: white;
+    text-align: center;
+    padding: 80px 20px;
+    margin-bottom: 40px;
+}
+
+.owners-hero h1 {
+    font-size: 3.5rem;
+    margin-bottom: 15px;
+    font-weight: 700;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.owners-hero .hero-subtitle {
+    font-size: 1.3rem;
+    max-width: 800px;
+    margin: 0 auto;
+    opacity: 0.9;
+}
+
+.section-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--brand-primary);
+    text-align: center;
+    margin-bottom: 50px;
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -15px;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background-color: var(--accent-color);
+    border-radius: 2px;
+}
+
+.owners-grid-section {
+    padding: 60px 20px;
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.owners-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px;
+    justify-content: center;
+}
+
+.owner-card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+}
+
+.owner-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+}
+
+.owner-image {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 25px auto;
+    border: 5px solid var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.5);
+}
+
+.owner-card h3 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text-color-dark);
+    margin-bottom: 8px;
+}
+
+.owner-card .owner-title {
+    font-size: 1rem;
+    color: var(--brand-primary);
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.owner-card .owner-bio {
+    font-size: 0.95rem;
+    color: #666;
+    margin-bottom: 20px;
+    min-height: 120px;
+}
+
+.owner-social {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.owner-social .social-icon {
+    width: 30px;
+    height: 30px;
+    transition: transform 0.2s ease;
+}
+
+.owner-social .social-icon:hover {
+    transform: scale(1.1);
+}
+
+.product-vision-section {
+    background-color: var(--secondary-bg-color, #eef3f6);
+    padding: 80px 20px;
+}
+
+.product-description,
+.our-vision {
+    max-width: 900px;
+    margin: 0 auto 60px auto;
+    text-align: left;
+}
+
+.product-description h2,
+.our-vision h2 {
+    font-size: 2.2rem;
+    color: var(--brand-primary);
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.product-description p,
+.our-vision p {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .owners-hero h1 {
+        font-size: 2.5rem;
+    }
+
+    .owners-hero .hero-subtitle {
+        font-size: 1.1rem;
+    }
+
+    .section-title {
+        font-size: 2rem;
+        margin-bottom: 40px;
+    }
+
+    .owners-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .owner-card .owner-bio {
+        min-height: auto;
+    }
+
+    .product-description h2,
+    .our-vision h2 {
+        font-size: 1.8rem;
+    }
+
+    .product-description p,
+    .our-vision p {
+        font-size: 1rem;
+    }
+}

@@ -1,0 +1,106 @@
+/* Navbar styles */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 6%;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: nowrap;
+    height: 80px;
+}
+
+.nav-logo {
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+.nav-center-links {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+}
+
+.nav-center-links a {
+    font-size: 1rem;
+    padding: 0.4rem 0.6rem;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-center-links a:hover {
+    color: var(--brand-primary);
+}
+
+.get-started {
+    background: var(--brand-primary);
+    color: white !important;
+    padding: 0.5rem 1.1rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+}
+
+.get-started:hover {
+    background: #3730a3;
+    transform: translateY(-1px);
+}
+
+.login-btn-nav {
+    background: transparent;
+    color: var(--brand-primary) !important;
+    padding: 0.4rem 1rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: 2px solid var(--brand-primary);
+}
+
+.login-btn-nav:hover {
+    background: rgba(79, 70, 229, 0.1);
+    border-color: var(--brand-secondary);
+    color: var(--brand-secondary) !important;
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 1rem 4%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .nav-center-links {
+        display: none;
+    }
+
+    .nav-logo {
+        flex-grow: 1;
+    }
+
+    .nav-links {
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    .get-started,
+    .login-btn-nav {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+        border-width: 1px;
+    }
+}

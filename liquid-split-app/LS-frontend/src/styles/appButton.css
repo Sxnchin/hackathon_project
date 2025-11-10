@@ -1,0 +1,19 @@
+.store-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.store-buttons .inline-flex {
+    display: inline-flex;
+    align-items: center;
+}
+
+.store-buttons a {
+    text-decoration: none;
+}
+
+.store-buttons .rounded-lg {
+    border-radius: 8px;
+}

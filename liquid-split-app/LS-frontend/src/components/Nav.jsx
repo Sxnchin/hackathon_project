@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../utils/authContext';
-import '../src/App.css';
+import '../../components/nav.css';
 
 export default function Nav() {
   const { user, logout } = useAuth();

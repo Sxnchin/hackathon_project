@@ -16,3 +16,27 @@ body {
   font-family: 'Inter', sans-serif;
   color: #111827;
 }
+/* In your GLOBAL CSS file (App.css or index.css) */
+
+/* Find the main wrapper div, it might be #root or a class like .app */
+/* This example assumes you have a class named ".app" in App.jsx */
+/* In your GLOBAL CSS file (App.css or index.css) */
+
+/* Find the main wrapper div, it might be #root or a class like .app */
+/* This example assumes you have a class named ".app" in App.jsx */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-top:5rem;
+}
+/* In src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+  text-decoration: none;
+}

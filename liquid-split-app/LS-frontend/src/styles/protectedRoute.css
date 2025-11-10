@@ -1,0 +1,5 @@
+/* Minimal ProtectedRoute stylesheet (kept intentionally small) */
+.protected-route-placeholder {
+  /* no visual styles required for routing wrapper; kept for parity */
+  display: block;
+}

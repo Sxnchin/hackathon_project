@@ -1,0 +1,121 @@
+
+:root {
+  --brand-primary: #4f46e5; /* Indigo */
+  --brand-secondary: #7c3aed; /* Violet */
+  --brand-light: #a78bfa;
+  --surface-bg: rgba(255, 255, 255, 0.9);
+  --surface-accent: rgba(243, 244, 246, 0.8);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --success-color: #10b981;
+  --border-color: rgba(209, 213, 219, 0.5);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --hero-bg-dark: #1f2937;
+  --hero-text-light: #f3f4f6;
+
+  --accent-color: #28a745;
+  --text-color-dark: #333;
+  --text-color-light: #f8f8f8;
+  --secondary-bg-color: #eef3f6;
+  --accent-color-rgb: 40, 167, 69;
+}
+
+/* Keep base typography and resets in index.css; this file contains theme variables */
+body { color: var(--text-primary); }
+
+
+
+/* Shared button styles */
+.action-btn-modern,
+.login-btn-modern,
+.signup-btn-modern,
+.cta-btn {
+  background-image: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+  color: white;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.12);
+  transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  outline: none;
+}
+
+.action-btn-modern:hover,
+.login-btn-modern:hover,
+.signup-btn-modern:hover,
+.cta-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124,58,237,0.18);
+}
+
+.login-btn-modern:disabled,
+.signup-btn-modern:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Small hero CTA variant (slightly larger) */
+.cta-btn {
+  font-size: 1.2rem;
+  padding: 1rem 2.5rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+}
+
+/* Common back-link style used across pages */
+.back-link-modern {
+  display: block;
+  text-align: center;
+  margin-top: 2.5rem;
+  color: var(--brand-primary);
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0;
+  animation: fadeInLink 0.8s ease-out 0.2s forwards;
+  transition: all 0.3s ease;
+}
+.back-link-modern:hover { opacity: 1; color: var(--brand-secondary); text-decoration: underline; transform: translateY(-2px); }
+
+@keyframes fadeInLink { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Connect bank button—moved here to avoid duplicates */
+.connect-bank-btn {
+  background: linear-gradient(90deg, #4f46e5, #7c3aed);
+  color: white;
+  font-weight: 600;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+.connect-bank-btn:hover { transform: scale(1.05); background: linear-gradient(90deg, #4338ca, #6d28d9); }
+
+/* Small utilities */
+html, body { height: 100%; }
+
+/* Global app container to restore overall page layout (was in App.css previously) */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem 4rem; /* bottom padding so footer isn't flush */
+}
+
+/* Ensure footer shows up, spans full width, and contains centered content */
+.footer {
+  width: 100%;
+  background: var(--hero-bg-dark);
+  color: var(--hero-text-light);
+  padding: 1rem 0;
+  margin-top: 3rem;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.06);
+}
+
+.footer .app-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

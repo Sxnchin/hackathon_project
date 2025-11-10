@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import "../src/app.css";
+import "./home.css";
 import Owners from "./owners";
 import AppButton from "./appButton.jsx";
 function Home() {
@@ -36,7 +36,7 @@ function Home() {
 
 
   return (
-    <div className="app-container">
+    <div>
       {/* Navbar is provided globally by the Nav component in App.jsx */}
 
       {/* Hero Section */}

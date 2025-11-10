@@ -14,66 +14,37 @@ datasource db {
 // 👤 User Model
 // =====================
 model User {
-  id              Int         @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   name            String
-  email           String      @unique
-  password        String      // bcrypt hashed password
-  walletAddress   String?     @unique // Ethereum wallet address
-  role            UserRole    @default(USER)
-  balance         Float       @default(0)
-  stripeAccountId String?     @unique
-  isActive        Boolean     @default(true)
-  emailVerified   Boolean     @default(false)
-  lastLogin       DateTime?
-  refreshToken    String?     // JWT refresh token
-  createdPots     Pot[]       @relation("UserCreatedPots")
-  pots            PotMember[] // pots user participates in
-  receipts        Receipt[]   @relation("UserReceipts") // receipts paid by this user
-  auditLogs       AuditLog[]  // security audit trail
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-}
-
-// =====================
-// 🔐 User Roles Enum
-// =====================
-enum UserRole {
-  ADMIN       // Full system access
-  USER        // Standard user
-  MODERATOR   // Can manage pots and receipts
-}
-
-// =====================
-// 📋 Audit Log Model
-// =====================
-model AuditLog {
-  id         Int      @id @default(autoincrement())
-  userId     Int?
-  action     String   // e.g., "NFT_MINTED", "POT_CREATED", "USER_LOGIN"
-  resource   String?  // e.g., "Receipt:123", "Pot:45"
-  ipAddress  String?
-  userAgent  String?
-  metadata   Json?    // Additional context
-  createdAt  DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([action])
-  @@index([createdAt])
+  email           String         @unique
+  password        String         // bcrypt hashed password
+  balance         Float          @default(0)
+  stripeAccountId String?        @unique
+  createdPots     Pot[]          @relation("UserCreatedPots")
+  pots            PotMember[]    // pots user participates in
+  receipts        Receipt[]      @relation("UserReceipts") // receipts paid by this user
+  friendships      Friend[]          @relation("UserFriendships") // friendships initiated by this user
+  friendOf         Friend[]          @relation("FriendOf") // friendships where this user was added
+  createdGroups    Group[]           @relation("UserCreatedGroups") // groups created by this user
+  groupMemberships GroupMember[]     // groups user is a member of
+  groupInvitations GroupInvitation[] // group invitations received by this user
+  notifications    Notification[]    // notifications received by this user
+  createdAt        DateTime          @default(now())
 }
 
 // =====================
 // 💧 Pot Model
 // =====================
 model Pot {
-  id          Int         @id @default(autoincrement())
-  name        String
-  totalAmount Float       @default(0)
-  creatorId   Int?
-  members     PotMember[] // relation through join table
-  receipts    Receipt[]   @relation("PotReceipts") // receipts linked to this pot
-  createdAt   DateTime    @default(now())
+  id            Int            @id @default(autoincrement())
+  name          String
+  totalAmount   Float          @default(0)
+  status        String         @default("PENDING") // PENDING, FINALIZED
+  creatorId     Int?
+  members       PotMember[]    // relation through join table
+  receipts      Receipt[]      @relation("PotReceipts") // receipts linked to this pot
+  notifications Notification[] // notifications related to this pot
+  createdAt     DateTime       @default(now())
 
   creator User? @relation("UserCreatedPots", fields: [creatorId], references: [id], onDelete: SetNull)
 }
@@ -82,10 +53,11 @@ model Pot {
 // 🤝 PotMember (Join Table)
 // =====================
 model PotMember {
-  id     Int   @id @default(autoincrement())
-  userId Int
-  potId  Int
-  share  Float @default(0)
+  id            Int    @id @default(autoincrement())
+  userId        Int
+  potId         Int
+  share         Float  @default(0)
+  paymentStatus String @default("PENDING") // PENDING, PAID, DENIED
 
   // Relations
   user User @relation(fields: [userId], references: [id])
@@ -104,32 +76,85 @@ model Receipt {
   amount      Float
   timestamp   DateTime @default(now())
   description String?
-  merchantName String?
-  purchaseDate DateTime @default(now())
-  currency    String   @default("USD")
-  imageUrl    String?
-
-  // 🎨 NFT Fields - Enhanced for Production
-  nftMinted        Boolean   @default(false)
-  nftTokenId       String?   @unique
-  nftTxHash        String?
-  nftContractAddr  String?
-  nftIpfsHash      String?
-  nftMetadataUrl   String?
-  nftOwner         String?   // Ethereum address
-  nftMintedAt      DateTime?
-  nftOpenseaUrl    String?
-  nftEtherscanUrl  String?
-  nftVoucherSig    String?   // Lazy mint signature
-  nftVoucherNonce  String?   // Prevents replay attacks
-  nftClaimable     Boolean   @default(false) // If voucher created
-  nftClaimed       Boolean   @default(false) // If user claimed on-chain
 
   pot   Pot  @relation("PotReceipts", fields: [potId], references: [id], onDelete: Cascade)
   payer User @relation("UserReceipts", fields: [payerId], references: [id])
+}
 
-  @@index([nftMinted])
-  @@index([nftClaimable])
-  @@index([potId])
-  @@index([payerId])
+// =====================
+// 👥 Friend Model
+// =====================
+model Friend {
+  id        Int      @id @default(autoincrement())
+  userId    Int      // User who initiated the friendship
+  friendId  Int      // User being added as friend
+  status    String   @default("accepted") // accepted, pending, blocked
+  createdAt DateTime @default(now())
+
+  user   User @relation("UserFriendships", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId]) // prevents duplicate friendships
+}
+
+// =====================
+// 👪 Group Model
+// =====================
+model Group {
+  id          Int               @id @default(autoincrement())
+  name        String
+  creatorId   Int
+  members     GroupMember[]
+  invitations GroupInvitation[]
+  createdAt   DateTime          @default(now())
+
+  creator User @relation("UserCreatedGroups", fields: [creatorId], references: [id], onDelete: Cascade)
+}
+
+// =====================
+// 🤝 GroupMember (Join Table)
+// =====================
+model GroupMember {
+  id      Int @id @default(autoincrement())
+  groupId Int
+  userId  Int
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId]) // prevents duplicate memberships
+}
+
+// =====================
+// 📨 GroupInvitation Model
+// =====================
+model GroupInvitation {
+  id        Int      @id @default(autoincrement())
+  groupId   Int
+  userId    Int      // User being invited
+  status    String   @default("pending") // pending, accepted, declined
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId]) // prevents duplicate invitations
+}
+
+// =====================
+// 🔔 Notification Model
+// =====================
+model Notification {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      // User receiving the notification
+  potId              Int?     // Related pot (if applicable)
+  friendRequestId    Int?     // Related friend request (if applicable)
+  groupInvitationId  Int?     // Related group invitation (if applicable)
+  type               String   // PAYMENT_REQUEST, PAYMENT_DENIED, FRIEND_REQUEST, GROUP_INVITATION
+  message            String
+  status             String   @default("UNREAD") // UNREAD, READ
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pot  Pot?  @relation(fields: [potId], references: [id], onDelete: Cascade)
 }

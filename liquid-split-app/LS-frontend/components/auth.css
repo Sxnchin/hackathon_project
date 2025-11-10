@@ -1,0 +1,15 @@
+.login-demo-bg, .signup-demo-bg { padding: 2rem; background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23e9d5ff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E'), linear-gradient(170deg, #f3e8ff 0%, #e0f2fe 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+.login-card-modern, .signup-card-modern { background: var(--surface-bg); backdrop-filter: blur(20px); border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); max-width: 420px; width: 100%; border: 1px solid rgba(255,255,255,0.5); padding: 2.5rem 2rem; text-align: center; }
+.login-header h2, .signup-header h2 { font-weight: 800; }
+.login-header p, .signup-header p { font-size: 1rem; color: var(--text-secondary); }
+.login-form-modern, .signup-form-modern { display: flex; flex-direction: column; text-align: left; margin-top: 2rem; }
+.login-form-modern label, .signup-form-modern label { font-weight: 600; margin-bottom: 0.3rem; color: #374151; }
+.login-form-modern input, .signup-form-modern input { padding: 0.8rem; border-radius: 0.75rem; border: 1px solid #d1d5db; font-size: 1rem; outline: none; margin-bottom: 1.2rem; transition: border 0.3s ease, box-shadow 0.3s ease; }
+.login-form-modern input:focus, .signup-form-modern input:focus { border-color: var(--brand-secondary); box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+.login-btn-modern, .signup-btn-modern { background-image: linear-gradient(to right, var(--brand-primary), var(--brand-secondary)); color: white; font-weight: 600; font-size: 1.1rem; padding: 0.9rem; border: none; border-radius: 0.75rem; cursor: pointer; transition: all 0.3s ease; margin-top: 0.5rem; }
+.login-btn-modern:hover, .signup-btn-modern:hover { transform: scale(1.03); box-shadow: 0 10px 20px rgba(79,70,229,0.3); }
+.login-btn-modern:disabled, .signup-btn-modern:disabled { background: #9ca3af; cursor: not-allowed; }
+.login-error-modern, .signup-error-modern { color: #ef4444; font-weight: 500; text-align: center; margin-top: 1rem; }
+.login-card-modern p.text-center, .signup-card-modern p.text-center { margin-top: 2.5rem; }
+.login-link, .signup-link { color: var(--brand-primary); font-weight: 600; text-decoration: none; }
+.login-link:hover, .signup-link:hover { color: var(--brand-secondary); text-decoration: underline; }

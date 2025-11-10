@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import "./pots.css";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../src/utils/authContext";
@@ -91,12 +92,12 @@ function Pots() {
   }, [feedback]);
 
   const ownedPots = useMemo(() => {
-    const list = pots.filter((pot) => pot.role === "owner");
+    const list = pots.filter((pot) => pot.role === "owner" && pot.status === "FINALIZED");
     return list.slice().sort(getComparator(sortOptions.owned));
   }, [pots, sortOptions.owned, getComparator]);
 
   const participatingPots = useMemo(() => {
-    const list = pots.filter((pot) => pot.role !== "owner");
+    const list = pots.filter((pot) => pot.role !== "owner" && pot.status === "FINALIZED");
     return list.slice().sort(getComparator(sortOptions.participating));
   }, [pots, sortOptions.participating, getComparator]);
 
@@ -352,8 +353,8 @@ function Pots() {
                     <header className="pot-card-header">
                       <div className="pot-card-heading">
                         <h3>{pot.name}</h3>
-                        <span className="pot-total">
-                          Total: ${Number(pot.totalAmount || 0).toFixed(2)}
+                        <span style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                          Created: {new Date(pot.createdAt).toLocaleDateString()}
                         </span>
                       </div>
                       <button
@@ -364,50 +365,15 @@ function Pots() {
                         Delete
                       </button>
                     </header>
-                    <div className="pot-meta">
-                      <div>
-                        <strong>Your Share:</strong>{" "}
-                        ${Number(pot.userShare || 0).toFixed(2)}
-                      </div>
-                      <div>
-                        <strong>Receipts:</strong> {pot.receipts?.length || 0}
-                      </div>
-                    </div>
                     <div className="pot-members">
                       <h4>Members</h4>
                       <ul>
                         {pot.members.map((member) => (
                           <li key={member.id}>
                             <span>{member.user?.name || "Member"}</span>
-                            <span>${Number(member.share || 0).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>
-                    </div>
-                    <div className="pot-share-editor">
-                      <label htmlFor={`share-${pot.id}`}>
-                        Adjust your share
-                      </label>
-                      <input
-                        id={`share-${pot.id}`}
-                        type="number"
-                        value={shareDrafts[pot.id] ?? ""}
-                        onChange={(e) => handleDraftChange(pot.id, e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                      />
-                      <div className="pot-share-actions">
-                        <motion.button
-                          type="button"
-                          className="get-started"
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => handleAddFunds(pot.id)}
-                        >
-                          Add Funds
-                        </motion.button>
-                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -462,55 +428,29 @@ function Pots() {
                     transition={{ duration: 0.3 }}
                   >
                     <header className="pot-card-header">
-                      <h3>{pot.name}</h3>
-                      <span className="pot-total">
-                        Total: ${Number(pot.totalAmount || 0).toFixed(2)}
-                      </span>
+                      <div className="pot-card-heading">
+                        <h3>{pot.name}</h3>
+                        <span style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                          Created: {new Date(pot.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="pot-delete-btn"
+                        onClick={() => handleDeletePot(pot.id, pot.name)}
+                      >
+                        Delete
+                      </button>
                     </header>
-                    <div className="pot-meta">
-                      <div>
-                        <strong>Your Share:</strong>{" "}
-                        ${Number(pot.userShare || 0).toFixed(2)}
-                      </div>
-                      <div>
-                        <strong>Receipts:</strong> {pot.receipts?.length || 0}
-                      </div>
-                    </div>
                     <div className="pot-members">
                       <h4>Members</h4>
                       <ul>
                         {pot.members.map((member) => (
                           <li key={member.id}>
                             <span>{member.user?.name || "Member"}</span>
-                            <span>${Number(member.share || 0).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>
-                    </div>
-                    <div className="pot-share-editor">
-                      <label htmlFor={`share-${pot.id}`}>
-                        Adjust your share
-                      </label>
-                      <input
-                        id={`share-${pot.id}`}
-                        type="number"
-                        value={shareDrafts[pot.id] ?? ""}
-                        onChange={(e) => handleDraftChange(pot.id, e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                      />
-                      <div className="pot-share-actions">
-                        <motion.button
-                          type="button"
-                          className="get-started"
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => handleAddFunds(pot.id)}
-                        >
-                          Add Funds
-                        </motion.button>
-                      </div>
                     </div>
                   </motion.div>
                 ))}

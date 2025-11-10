@@ -31,11 +31,13 @@ export function AuthProvider({ children }) {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, [readUser]);
-
   const login = useCallback((token, userData) => {
-    if (!token || !userData) return;
-    localStorage.setItem('liquidSplitToken', token);
-    localStorage.setItem('token', token);
+    // Allow calling login either with (token, userData) or (null, userData) when cookie-based auth is used
+    if (!userData) return;
+    if (token) {
+      localStorage.setItem('liquidSplitToken', token);
+      localStorage.setItem('token', token);
+    }
     localStorage.setItem('liquidSplitUser', JSON.stringify(userData));
     setUser(userData);
   }, []);
@@ -46,6 +48,31 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('liquidSplitUser');
     setUser(null);
   }, []);
+
+  // On mount, if no user is present in localStorage, attempt to bootstrap session via cookie
+  useEffect(() => {
+    let mounted = true;
+    const tryBootstrap = async () => {
+      const existing = readUser();
+      if (existing) return;
+      try {
+        const resp = await fetch((import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000') + '/auth/me', { credentials: 'include' });
+        if (!mounted) return;
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.user) {
+            // set a placeholder token so ProtectedRoute sees us as authenticated
+            const placeholder = 'cookie';
+            login(placeholder, data.user);
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    tryBootstrap();
+    return () => { mounted = false; };
+  }, [login, readUser]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, readToken }}>

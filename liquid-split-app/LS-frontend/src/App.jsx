@@ -9,9 +9,14 @@ import Demo from "../components/demo";
 import OnboardSuccess from "../components/onboardSuccess";
 import Login from "../components/login";
 import Profile from "../components/profile";
+import CompleteProfile from "../components/completeProfile";
 import Pots from "../components/pots";
-import FreshNFTs from "../components/FreshNFTs";
+import ProtectedRoute from "../components/ProtectedRoute";
+import Friends from "../components/friends";
 import Owners from "../components/owners";
+import ChangePassword from "../components/changePassword";
+import ForgotPassword from "../components/forgotPassword";
+import FreshNFTs from "../components/FreshNFTs";
 import NFTDemo from "./components/NFTDemo";
 
 // ✅ Auth Context
@@ -24,42 +29,74 @@ function App() {
   return (
     <AuthProvider>
       <Web3Provider>
-        <Router>
-          {/* 🔝 Global Navbar (shows on all pages) */}
-          <Nav />
+        <div className="app">
+          <Router>
+            {/* 🔝 Global Navbar (shows on all pages) */}
+            <Nav />
 
-          {/* 🧭 Route Configuration */}
-          <Routes>
-            {/* 🏠 Homepage */}
-            <Route path="/" element={<Home />} />
+        {/* 🧭 Route Configuration */}
+        <Routes>
+          {/* 🏠 Homepage */}
+          <Route path="/" element={<Home />} />
 
-            {/* 📝 Sign Up Page */}
-            <Route path="/get-started" element={<GetStarted />} />
+          {/* 📝 Sign Up Page */}
+          <Route path="/get-started" element={<GetStarted />} />
 
-            {/* 💳 Demo Page */}
-            <Route path="/demo" element={<Demo />} />
+          {/* 💳 Demo Page */}
+          <Route path="/demo" element={<Demo />} />
 
-            <Route path = "/owners" element = {<Owners />} />
-            
-            {/* 🎨 NFT Minting Demo */}
-            <Route path="/nft-demo" element={<NFTDemo />} />
-            
-            {/* ✅ Stripe Onboarding Return */}
-            <Route path="/onboard/success" element={<OnboardSuccess />} />
+          <Route path = "/owners" element = {<Owners />} />
+          <Route path = "/friends" element = {<Friends/>}/>
+          {/* ✅ Stripe Onboarding Return */}
+          <Route path="/onboard/success" element={<OnboardSuccess />} />
 
-            {/* 🔐 Login Page */}
-            <Route path="/login" element={<Login />} />
+          {/* 🔐 Login Page */}
+          <Route path="/login" element={<Login />} />
 
-            {/* 👤 Profile Page */}
-            <Route path="/profile" element={<Profile />} />
+          {/* ✅ Complete profile after OAuth */}
+          <Route path="/complete-profile" element={<CompleteProfile />} />
 
-            {/* 🪣 Your Pots Page */}
-            <Route path="/pots" element={<Pots />} />
+          {/* � Forgot Password Page */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* 🎨 Fresh NFT Collection */}
-            <Route path="/pots/:potId/nfts" element={<FreshNFTs />} />
-          </Routes>
-        </Router>
+          {/* �👤 Profile Page */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🔐 Change Password Page */}
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePassword />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🪣 Your Pots Page */}
+          <Route
+            path="/pots"
+            element={
+              <ProtectedRoute>
+                <Pots />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🎨 NFT Minting Demo */}
+          <Route path="/nft-demo" element={<NFTDemo />} />
+
+          {/* 🎨 Fresh NFT Collection */}
+          <Route path="/pots/:potId/nfts" element={<FreshNFTs />} />
+        </Routes>
+          </Router>
+        </div>
       </Web3Provider>
     </AuthProvider>
   );
