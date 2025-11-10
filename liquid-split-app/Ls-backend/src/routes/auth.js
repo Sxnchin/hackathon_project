@@ -8,28 +8,6 @@ import querystring from 'querystring';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Set balance for user (demo only)
-router.post('/set-balance', async (req, res) => {
-  const { email, name, balance } = req.body;
-  if (!email || !name) {
-    return res.status(400).json({ error: 'Missing email or name' });
-  }
-  const b = Number(balance);
-  if (!Number.isFinite(b)) return res.status(400).json({ error: 'Invalid balance' });
-  try {
-    // Upsert user with balance
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: { balance: b },
-      create: { email, name, password: '', balance: b },
-    });
-    res.json({ user });
-  } catch (err) {
-    console.error('Set balance error:', err);
-    res.status(500).json({ error: 'Could not set balance' });
-  }
-});
-
 // Register
 router.post("/register", async (req, res, next) => {
   try {
@@ -258,6 +236,86 @@ router.post("/change-password", auth, async (req, res, next) => {
     });
 
     res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Reset password (no authentication required, but needs current password)
+router.post("/reset-password", async (req, res, next) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+    
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Email, current password, and new password are required" });
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({ 
+      where: { email } 
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Verify current password
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ error: passwordValidation.error });
+    }
+
+    // Check if new password is different from current
+    const samePassword = await bcrypt.compare(newPassword, user.password);
+    if (samePassword) {
+      return res.status(400).json({ error: "New password must be different from current password" });
+    }
+
+    // Hash and update password
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed },
+    });
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Delete account (requires authentication)
+router.delete("/delete-account", auth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: {
+        createdGroups: true,
+        groupMemberships: true,
+        createdPots: true,
+        pots: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Delete user and all related data (cascading deletes handled by Prisma schema)
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({ message: "Account deleted successfully" });
   } catch (err) {
     next(err);
   }

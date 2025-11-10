@@ -14,6 +14,7 @@ import transactionsRoutes from "./routes/transactions.js";
 import stripeRoutes, { stripeWebhook } from "./routes/stripe.js";
 import friendsRoutes from "./routes/friends.js";
 import groupsRoutes from "./routes/groups.js";
+import notificationsRoutes from "./routes/notifications.js";
 import { auth } from "./middleware/auth.js";
 
 dotenv.config();
@@ -26,7 +27,26 @@ for (const key of requiredEnv) {
 
 // ===== Initialize App & Database =====
 const app = express();
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+});
+
+// Handle Prisma connection errors
+prisma.$connect().catch((err) => {
+  console.error("❌ Failed to connect to database:", err);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
 
 // ===== Proxy & HTTPS enforcement (Production only) =====
 if (process.env.NODE_ENV === "production") {
@@ -74,9 +94,15 @@ if (process.env.NODE_ENV === "production") {
 // ===== Rate Limiting =====
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per window
+  max: process.env.NODE_ENV === "production" ? 100 : 10000, // Higher limit for development
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({ 
+      error: "Too many requests, please try again later.",
+      retryAfter: req.rateLimit.resetTime
+    });
+  },
 });
 app.use(limiter);
 
@@ -94,6 +120,7 @@ app.use("/transactions", auth, transactionsRoutes); // protected
 app.use("/stripe", stripeRoutes);               // protected
 app.use("/friends", auth, friendsRoutes);       // protected
 app.use("/groups", auth, groupsRoutes);         // protected
+app.use("/notifications", auth, notificationsRoutes); // protected
 
 // ===== 404 Handler =====
 app.use((req, res) => {
@@ -108,7 +135,11 @@ app.use((err, req, res, next) => {
     process.env.NODE_ENV === "production"
       ? "Internal Server Error"
       : err.message;
-  res.status(status).json({ error: message });
+  
+  // Ensure we always send JSON
+  if (!res.headersSent) {
+    res.status(status).json({ error: message });
+  }
 });
 
 // ===== Start Server =====

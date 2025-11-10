@@ -110,7 +110,6 @@ function Demo() {
   const [participants, setParticipants] = useState([]);
   const [splitStarted, setSplitStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [total, setTotal] = useState(0);
   const [receipts, setReceipts] = useState([]);
   const [authModal, setAuthModal] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -120,8 +119,29 @@ function Demo() {
   // but it's kept to maintain the structure of other logic if it relied on it.
   const [tempInput, setTempInput] = useState(""); 
   const [potName, setPotName] = useState("Demo Pot");
+  const [groups, setGroups] = useState([]);
+  const [showGroupDropdown, setShowGroupDropdown] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [potCreatorId, setPotCreatorId] = useState(null);
+  const [connectionIssue, setConnectionIssue] = useState(false);
+  const [potStatus, setPotStatus] = useState("PENDING");
 
   const hasRequestedPot = useRef(false);
+  const consecutiveFailures = useRef(0);
+
+  // Decode JWT to get current user ID
+  useEffect(() => {
+    const token = localStorage.getItem("token") || localStorage.getItem("liquidSplitToken");
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        setCurrentUserId(payload.userId);
+      } catch (err) {
+        console.error("Failed to decode token:", err);
+      }
+    }
+  }, []);
 
   const requestPotCreation = useCallback(async (preferredName) => {
     try {
@@ -145,14 +165,36 @@ function Demo() {
         return null;
       }
 
-      const data = await res.json();
+      if (res.status === 429) {
+        setPopupData({
+          title: "Too Many Requests",
+          message: "Please wait a moment before trying again.",
+        });
+        return null;
+      }
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Pot creation failed:", res.status, errorText);
+        throw new Error(`Server returned ${res.status}: ${errorText}`);
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error("Failed to parse JSON response:", parseError);
+        throw new Error("Invalid response from server");
+      }
+
       const createdPot = data?.pot || data;
       if (!createdPot?.id) {
-        throw new Error("Invalid pot response");
+        throw new Error("Invalid pot response - missing pot ID");
       }
 
       setPotId(createdPot.id);
       setPotName(createdPot.name || desiredName);
+      setPotCreatorId(createdPot.creatorId || currentUserId);
       window.dispatchEvent(new Event("pots:refresh"));
       return createdPot.id;
     } catch (err) {
@@ -165,7 +207,7 @@ function Demo() {
       );
       return null;
     }
-  }, [setPopupData]);
+  }, [setPopupData, currentUserId]);
 
   /* --- Create Pot on Load (once) --- */
   useEffect(() => {
@@ -175,11 +217,118 @@ function Demo() {
     }
   }, [potId, requestPotCreation]);
 
+  /* --- Load Groups on Mount --- */
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:4000/groups', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setGroups(data.groups || []);
+        }
+      } catch (err) {
+        console.error('Error loading groups:', err);
+      }
+    };
+    loadGroups();
+  }, []);
+
+  /* --- Poll Pot Data for Real-Time Updates --- */
+  useEffect(() => {
+    if (!potId) return;
+
+    const pollPotData = async () => {
+      try {
+        const potRes = await fetch(`http://localhost:4000/pots/${potId}`, {
+          headers: getAuthHeaders(),
+        });
+        
+        if (!potRes.ok) {
+          // Silently fail on rate limit or server errors during polling
+          if (potRes.status === 429 || potRes.status >= 500) {
+            console.warn(`Polling failed with status ${potRes.status}, will retry...`);
+            return;
+          }
+        }
+        
+        if (potRes.ok) {
+          let potData;
+          try {
+            potData = await potRes.json();
+          } catch (parseError) {
+            console.error("Failed to parse pot data JSON:", parseError);
+            return;
+          }
+          
+          // Update participants with latest payment status
+          if (potData.members && Array.isArray(potData.members)) {
+            setParticipants(
+              potData.members.map((m) => ({
+                id: m.userId,
+                name: m.user?.name || "Unknown",
+                status: "pending",
+                paymentStatus: m.paymentStatus || "PENDING",
+              }))
+            );
+          }
+
+          // Update pot name if changed
+          if (potData.name && potData.name !== potName) {
+            setPotName(potData.name);
+          }
+
+          // Update creator ID if not set
+          if (!potCreatorId && potData.creatorId) {
+            setPotCreatorId(potData.creatorId);
+          }
+
+          // Update pot status
+          if (potData.status) {
+            setPotStatus(potData.status);
+          }
+
+          // Reset failure counter on success
+          consecutiveFailures.current = 0;
+          setConnectionIssue(false);
+        }
+      } catch (err) {
+        // Network errors - track failures
+        consecutiveFailures.current += 1;
+        console.error("Failed to poll pot data (network error):", err.message);
+        
+        // Show warning after 3 consecutive failures
+        if (consecutiveFailures.current >= 3) {
+          setConnectionIssue(true);
+        }
+      }
+    };
+
+    // Poll immediately, then every 3 seconds
+    pollPotData();
+    const interval = setInterval(pollPotData, 3000);
+
+    // Listen for custom pot update events for immediate refresh
+    const handlePotUpdate = (e) => {
+      if (e.detail?.potId === potId) {
+        pollPotData();
+      }
+    };
+    window.addEventListener("pot:updated", handlePotUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("pot:updated", handlePotUpdate);
+    };
+  }, [potId, potName, potCreatorId]);
+
   /* ---------------------------------------------------------------------- */
   /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
   /* ---------------------------------------------------------------------- */
   const addMemberToPot = useCallback(
-    async (user, share) => {
+    async (user) => {
       try {
         let targetPotId = potId;
         if (!targetPotId) {
@@ -198,7 +347,7 @@ function Demo() {
           {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ userId: user.id, share }),
+            body: JSON.stringify({ userId: user.id }),
           }
         );
 
@@ -220,16 +369,9 @@ function Demo() {
           potData.members.map((m) => ({
             id: m.userId,
             name: m.user?.name || user.name,
-            share: m.share,
             status: "pending",
           }))
         );
-
-        const newTotal = potData.members.reduce(
-          (sum, m) => sum + parseFloat(m.share || 0),
-          0
-        );
-        setTotal(newTotal);
 
         setPopupData({
           title: "Member Added",
@@ -308,85 +450,7 @@ function Demo() {
     });
   }, [potId, potName, requestPotCreation, setPopupData]);
 
-  const handleWithdraw = useCallback(
-    async (user) => {
-      const potMember = participants.find((participant) => participant.id === user.id);
-      const availableShare = Number(potMember?.share ?? 0);
-      if (availableShare <= 0) {
-        setPopupData({
-          title: "Nothing to Withdraw",
-          message: `${user.name} does not have funds to withdraw.`,
-        });
-        return;
-      }
 
-      setPopupData({
-        title: "Withdraw Funds",
-        message: `${user.name} currently has $${availableShare.toFixed(
-          2
-        )} in this pot.\nEnter an amount to withdraw:`,
-        type: "input",
-        inputType: "number",
-        inputValue: availableShare.toFixed(2),
-        showCancel: true,
-        onConfirm: async (amountStr) => {
-          const amount = Number(amountStr);
-          if (!Number.isFinite(amount) || amount <= 0) {
-            setPopupData({
-              title: "Invalid Amount",
-              message: "Please enter an amount greater than zero.",
-            });
-            return;
-          }
-          if (amount > availableShare) {
-            setPopupData({
-              title: "Too High",
-              message: `Cannot withdraw more than $${availableShare.toFixed(2)}.`,
-            });
-            return;
-          }
-
-          setPopupData(null);
-          try {
-            const res = await fetch(
-              `http://localhost:4000/pots/${potId}/members/${user.id}`,
-              {
-                method: "PATCH",
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ delta: -amount }),
-              }
-            );
-
-            const data = await res.json();
-            if (!res.ok) {
-              throw new Error(data.error || "Unable to withdraw funds.");
-            }
-
-            setParticipants((prev) =>
-              prev.map((p) =>
-                p.id === user.id
-                  ? { ...p, share: p.share - amount, status: "pending" }
-                  : p
-              )
-            );
-            setTotal((prev) => Math.max(0, prev - amount));
-            setPopupData({
-              title: "Withdrawal Successful",
-              message: `${user.name} withdrew $${amount.toFixed(2)}.`,
-            });
-          } catch (error) {
-            console.error("❌ Withdraw failed:", error);
-            setPopupData({
-              title: "Withdraw Failed",
-              message: error.message || "We couldn't process that withdrawal.",
-            });
-          }
-        },
-        setInputValue: setTempInput,
-      });
-    },
-    [participants, potId, setPopupData]
-  );
 
   const proceedAddMember = useCallback(
     async (name) => {
@@ -407,36 +471,8 @@ function Demo() {
           return;
         }
 
-        setPopupData({
-          title: "Contribution",
-          message: `${user.name}'s current balance: $${user.balance.toFixed(
-            2
-          )}\nEnter amount to contribute:`,
-          type: "input",
-          inputType: "number",
-          inputValue: "",
-          showCancel: true,
-          onConfirm: async (shareString) => {
-            const share = parseFloat(shareString);
-            if (Number.isNaN(share) || share <= 0) {
-              setPopupData({
-                title: "Invalid Amount",
-                message: "Please enter a valid positive number.",
-              });
-              return;
-            }
-            if (share > user.balance) {
-              setPopupData({
-                title: "Insufficient Balance",
-                message: `${user.name} cannot contribute more than their balance.`,
-              });
-              return;
-            }
-            setPopupData(null);
-            await addMemberToPot(user, share);
-          },
-          setInputValue: setTempInput,
-        });
+        setPopupData(null);
+        await addMemberToPot(user);
       } catch (err) {
         console.error("❌ Add member failed:", err);
         setPopupData({
@@ -448,41 +484,207 @@ function Demo() {
     [addMemberToPot, setPopupData]
   );
 
-  const handleAddMember = useCallback(() => {
-    setPopupData({
-      title: "Add Member",
-      message: "Enter the name of a registered user:",
-      type: "input",
-      // We pass the initial value for local state
-      inputValue: "", 
-      showCancel: true,
-      // *** MODIFIED: The function now accepts the input value 'name' from the Modal ***
-      onConfirm: async (name) => {
-        name = name.trim();
-        if (!name) {
-          setPopupData({
-            title: "Invalid Input",
-            message: "Name cannot be empty.",
-          });
-          return;
-        }
-        setPopupData(null);
-        await proceedAddMember(name);
-      },
-      // setInputValue is no longer strictly needed but kept as placeholder
-      setInputValue: setTempInput, 
-    });
-  }, [proceedAddMember, setPopupData]); // Dependencies for useCallback
-
-  const handleStartSplit = () => {
-    if (participants.length < 2) {
+  const handleAddGroup = useCallback(() => {
+    if (groups.length === 0) {
       setPopupData({
-        title: "Not Enough Members",
-        message: "You need at least 2 members to start the split!",
+        title: "No Groups Available",
+        message: "Please create a group first from the Friends page before starting a split.",
+        onConfirm: () => setPopupData(null),
       });
       return;
     }
-    setSplitStarted(true);
+    
+    if (selectedGroup) {
+      setPopupData({
+        title: "Group Already Added",
+        message: "You can only add one group per split. Remove the current group to add a different one.",
+        onConfirm: () => setPopupData(null),
+      });
+      return;
+    }
+    
+    setShowGroupDropdown(true);
+  }, [groups, selectedGroup, setPopupData]);
+
+  const handleSelectGroup = useCallback(async (group) => {
+    setShowGroupDropdown(false);
+    
+    // Add all group members to the pot
+    const failedMembers = [];
+    const skippedMembers = [];
+    
+    // Ensure pot exists first
+    let targetPotId = potId;
+    if (!targetPotId) {
+      targetPotId = await requestPotCreation();
+      if (!targetPotId) {
+        setPopupData({
+          title: "Error",
+          message: "Failed to create pot. Please try again.",
+        });
+        return;
+      }
+    }
+    
+    // Fetch current pot members to get accurate list
+    let existingMemberIds = new Set();
+    try {
+      const potRes = await fetch(`http://localhost:4000/pots/${targetPotId}`, {
+        headers: getAuthHeaders(),
+      });
+      if (potRes.ok) {
+        const potData = await potRes.json();
+        existingMemberIds = new Set(potData.members.map(m => m.userId));
+      }
+    } catch (err) {
+      console.error("Failed to fetch pot members:", err);
+      // Fallback to participants state
+      existingMemberIds = new Set(participants.map(p => p.id));
+    }
+    
+    for (const member of group.members) {
+      const user = member.user;
+      
+      // Skip if user is already in the pot
+      if (existingMemberIds.has(user.id)) {
+        skippedMembers.push(user.name);
+        continue;
+      }
+      
+      try {
+
+        const res = await fetch(
+          `http://localhost:4000/pots/${targetPotId}/members`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ userId: user.id }),
+          }
+        );
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload.error || "Failed to add member");
+        }
+      } catch (err) {
+        failedMembers.push({ name: user.name, error: err.message });
+      }
+    }
+    
+    // Refresh pot data after all attempts and send notifications
+    if (targetPotId) {
+      try {
+        const potRes = await fetch(`http://localhost:4000/pots/${targetPotId}`, {
+          headers: getAuthHeaders(),
+        });
+        const potData = await potRes.json();
+        
+        // Update participants with payment status
+        setParticipants(
+          potData.members.map((m) => ({
+            id: m.userId,
+            name: m.user?.name || "Unknown",
+            status: "pending",
+            paymentStatus: m.paymentStatus || "PENDING",
+          }))
+        );
+
+        // Send notifications only to non-creator members
+        for (const member of potData.members) {
+          if (member.userId !== currentUserId) {
+            try {
+              await fetch("http://localhost:4000/notifications", {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                  userId: member.userId,
+                  potId: targetPotId,
+                  type: "PAYMENT_REQUEST",
+                  message: `You've been added to pot "${potData.name}". Please confirm your participation.`,
+                }),
+              });
+            } catch (err) {
+              console.error(`Failed to send notification to ${member.user?.name}:`, err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to refresh pot:", err);
+      }
+    }
+    
+    // Show results
+    if (failedMembers.length > 0) {
+      const errorMessages = failedMembers.map(m => `• ${m.name}: ${m.error}`).join('\n');
+      setPopupData({
+        title: "Some Members Could Not Be Added",
+        message: `The following members could not be added:\n\n${errorMessages}`,
+      });
+    } else {
+      setSelectedGroup(group);
+      setPopupData({
+        title: "Group Added",
+        message: `Members from "${group.name}" have been added successfully!`,
+      });
+    }
+  }, [potId, requestPotCreation, setPopupData, participants, currentUserId]);
+
+  const handleStartSplit = async () => {
+    if (!selectedGroup) {
+      setPopupData({
+        title: "No Group Added",
+        message: "Please add a group before starting the split!",
+      });
+      return;
+    }
+    
+    if (participants.length < 2) {
+      setPopupData({
+        title: "Not Enough Members",
+        message: "The selected group must have at least 2 members to start the split!",
+      });
+      return;
+    }
+
+    // Call finalize endpoint to check if all members have paid
+    try {
+      const res = await fetch(`http://localhost:4000/pots/${potId}/finalize`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPopupData({
+          title: "Cannot Finalize",
+          message: data.error || "Unable to finalize the pot. Please try again.",
+        });
+        return;
+      }
+
+      // Success - all members have paid
+      setSplitStarted(true);
+      setPotStatus("FINALIZED");
+      
+      // Trigger pots page refresh
+      window.dispatchEvent(new Event("pots:refresh"));
+      
+      setPopupData({
+        title: "Pot Finalized!",
+        message: "All members have confirmed payment. The pot has been saved to 'Your Pots' page.",
+        onConfirm: () => {
+          // Optionally redirect to pots page
+          window.location.href = "/pots";
+        },
+      });
+    } catch (err) {
+      console.error("Failed to finalize pot:", err);
+      setPopupData({
+        title: "Error",
+        message: "Failed to finalize pot. Please try again.",
+      });
+    }
   };
 
   /* --- Auth Modal Flow --- */
@@ -693,6 +895,23 @@ function Demo() {
         transition={{ duration: 0.5 }}
       >
         <div className="demo-header">
+          {connectionIssue && (
+            <div style={{
+              padding: "0.75rem 1rem",
+              background: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: "0.5rem",
+              marginBottom: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontSize: "0.9rem",
+              color: "#92400e",
+            }}>
+              <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+              <span>Connection issue detected. Some features may not update in real-time. Retrying...</span>
+            </div>
+          )}
           <div className="demo-header-text">
             <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
             <p className="text-gray-500 mt-2">
@@ -717,80 +936,236 @@ function Demo() {
         <div className="demo-content-grid">
           <div className="checkout-panel">
             <div className="participants-section">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h4 style={{ fontWeight: 600 }}>Participants</h4>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+                <h4 style={{ fontWeight: 600 }}>Groups</h4>
                 {!splitStarted && (
-                  <button
-                    onClick={handleAddMember}
-                    className="add-people action-btn-modern"
-                    style={{ marginLeft: "1rem" }}
-                  >
-                    Add Member
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-3 mt-4">
-                {participants.length === 0 ? (
-                  <p className="text-gray-400 italic text-sm">
-                    No participants yet.
-                  </p>
-                ) : (
-                  participants.map((user) => (
-                    <div
-                      key={user.id}
-                      className="participant-row-modern flex items-center justify-between"
+                  <div style={{ position: "relative" }}>
+                    <button
+                      onClick={handleAddGroup}
+                      className="add-people action-btn-modern"
+                      style={{ marginLeft: "1rem" }}
                     >
-                      <span className="font-medium text-gray-700">
-                        {user.name}
-                      </span>
-                      <span className="text-gray-600 font-semibold">
-                        ${user.share.toFixed(2)}
-                      </span>
-                      {splitStarted && (
-                        user.status === "pending" ? (
-                          <div className="participant-actions">
-                            <button
-                              onClick={() => openAuthenticator(user)}
-                              className="pay-btn-modern"
-                            >
-                              Pay
-                            </button>
-                            <button
-                              onClick={() => handleWithdraw(user)}
-                              className="demo-withdraw-btn"
-                            >
-                              Withdraw
-                            </button>
+                      Add Group
+                    </button>
+                    
+                    {/* Group Dropdown */}
+                    {showGroupDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="group-dropdown"
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 0.5rem)",
+                          right: 0,
+                          background: "white",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "0.75rem",
+                          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
+                          minWidth: "250px",
+                          maxHeight: "300px",
+                          overflowY: "auto",
+                          zIndex: 100,
+                        }}
+                      >
+                        <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #e5e7eb", fontWeight: 600, fontSize: "0.9rem" }}>
+                          Select Your Group
+                        </div>
+                        {groups.filter(group => group.creatorId === currentUserId).length === 0 ? (
+                          <div style={{ padding: "1rem", textAlign: "center", color: "#6b7280", fontSize: "0.9rem" }}>
+                            You haven't created any groups yet
                           </div>
                         ) : (
-                          <CheckIcon />
-                        )
-                      )}
-                    </div>
-                  ))
+                          groups.filter(group => group.creatorId === currentUserId).map((group) => (
+                          <div
+                            key={group.id}
+                            onClick={() => handleSelectGroup(group)}
+                            style={{
+                              padding: "0.75rem 1rem",
+                              cursor: "pointer",
+                              borderBottom: "1px solid #f3f4f6",
+                              transition: "background 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#f9fafb"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "white"}
+                          >
+                            <div style={{ fontWeight: 500, marginBottom: "0.25rem" }}>{group.name}</div>
+                            <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                              {group.members.length} member{group.members.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        )))}
+                        <button
+                          onClick={() => setShowGroupDropdown(false)}
+                          style={{
+                            width: "100%",
+                            padding: "0.75rem",
+                            background: "#f9fafb",
+                            border: "none",
+                            borderTop: "1px solid #e5e7eb",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                            color: "#6b7280",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
                 )}
               </div>
+              
+              {/* Display Selected Group */}
+              {selectedGroup && (
+                <div style={{
+                  marginTop: "1rem",
+                  padding: "0.75rem 1rem",
+                  background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
+                  borderRadius: "0.75rem",
+                  color: "white",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}>
+                  <div style={{ fontWeight: 600 }}>
+                    {selectedGroup.name}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedGroup(null);
+                      setParticipants([]);
+                    }}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.2)",
+                      border: "none",
+                      color: "white",
+                      padding: "0.4rem 0.75rem",
+                      borderRadius: "0.5rem",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)"}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
 
-              {participants.length > 0 && (
-                <div className="mt-5 text-right text-gray-700 font-semibold">
-                  Total: ${total.toFixed(2)}
+              {!selectedGroup && (
+                <p className="text-gray-400 italic text-sm mt-4">
+                  No group added yet.
+                </p>
+              )}
+
+              {/* Display Participants with Payment Status */}
+              {selectedGroup && participants.length > 0 && (
+                <div style={{ marginTop: "1rem" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "0.75rem", fontSize: "0.95rem", color: "#374151" }}>
+                    Participants ({participants.length})
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {participants.map((participant) => (
+                      <div
+                        key={participant.id}
+                        style={{
+                          padding: "0.75rem",
+                          background: "white",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "0.5rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "1rem",
+                        }}
+                      >
+                        <div style={{ fontWeight: 500, color: "#1f2937", flex: 1 }}>{participant.name}</div>
+                        
+                        {/* Show Pay button for current user if status is PENDING */}
+                        {participant.id === currentUserId && participant.paymentStatus === "PENDING" ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`http://localhost:4000/pots/${potId}/members/${currentUserId}/payment-status`, {
+                                  method: "PATCH",
+                                  headers: getAuthHeaders(),
+                                  body: JSON.stringify({ status: "PAID" }),
+                                });
+                                
+                                if (res.ok) {
+                                  window.dispatchEvent(new CustomEvent("pot:updated", { detail: { potId } }));
+                                  setPopupData({
+                                    title: "Payment Confirmed",
+                                    message: "Your payment has been confirmed!",
+                                  });
+                                } else {
+                                  const data = await res.json();
+                                  setPopupData({
+                                    title: "Error",
+                                    message: data.error || "Failed to confirm payment",
+                                  });
+                                }
+                              } catch (err) {
+                                console.error("Failed to confirm payment:", err);
+                                setPopupData({
+                                  title: "Error",
+                                  message: "Failed to confirm payment. Please try again.",
+                                });
+                              }
+                            }}
+                            style={{
+                              padding: "0.5rem 1rem",
+                              background: "#10b981",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "0.5rem",
+                              cursor: "pointer",
+                              fontWeight: 600,
+                              fontSize: "0.85rem",
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#059669"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "#10b981"}
+                          >
+                            Confirm Payment
+                          </button>
+                        ) : (
+                          <div
+                            style={{
+                              padding: "0.25rem 0.75rem",
+                              borderRadius: "9999px",
+                              fontSize: "0.8rem",
+                              fontWeight: 600,
+                              background: participant.paymentStatus === "PAID" ? "#d1fae5" : participant.paymentStatus === "DENIED" ? "#fee2e2" : "#fef3c7",
+                              color: participant.paymentStatus === "PAID" ? "#065f46" : participant.paymentStatus === "DENIED" ? "#991b1b" : "#92400e",
+                            }}
+                          >
+                            {participant.paymentStatus === "PAID" ? "✓ Paid" : participant.paymentStatus === "DENIED" ? "✗ Denied" : "⏱ Pending"}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
           <div className="action-panel-modern text-center">
-            {!splitStarted && !isComplete && (
+            {!splitStarted && !isComplete && potCreatorId === currentUserId && selectedGroup && (
               <button
                 onClick={handleStartSplit}
                 className="start-split-btn-modern mt-6"
               >
-                Start Split
+                Finalize & Start Split
               </button>
             )}
 
-            {splitStarted && !isComplete && (
+            {splitStarted && !isComplete && potStatus !== "FINALIZED" && (
               <p className="text-gray-500 mt-4">
                 Waiting for payments...{" "}
                 {participants.filter((p) => p.status === "paid").length} /{" "}
