@@ -1,21 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../src/utils/authContext";
+import { validatePassword } from "../../shared/passwordValidation";
+import PasswordStrengthIndicator from "./PasswordStrengthIndicator";
 
 function GetStarted() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // ✅ navigation hook
+
+  const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Basic client-side validation
+  const validatePasswordClient = (password) => {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/\d/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      return "Password must contain at least one special character (!@#$%^&*...)";
+    }
+    return null;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    // Client-side validation
+    const passwordError = validatePasswordClient(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const res = await fetch("http://localhost:4000/auth/register", {
@@ -34,18 +63,18 @@ function GetStarted() {
         throw new Error(data.error || "Registration failed. Please try again.");
       }
 
-      alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
-
-      // Optional: save token or user info if your backend returns it
+      // ✅ Save JWT token locally (so pots and demo can access it)
       if (data.token) {
-        // update auth context so navbar updates immediately
-        login(data.token, data.user);
+        localStorage.setItem("token", data.token);
       }
 
-      // 👇 Redirect to the profile page after successful registration
+      // ✅ Update global auth context (for navbar, etc.)
+      login(data.token, data.user);
+
+      alert(`✅ Welcome ${data.user.name}! Your account has been created.`);
       navigate("/profile");
 
-      // Reset fields after success
+      // Clear fields
       setEmail("");
       setUsername("");
       setPassword("");

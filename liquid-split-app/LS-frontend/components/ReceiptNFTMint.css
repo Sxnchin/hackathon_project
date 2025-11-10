@@ -1,0 +1,204 @@
+/* Receipt NFT Minting Component Styles */
+
+.receipt-nft-minted {
+  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.receipt-nft-minted .nft-badge {
+  display: inline-block;
+  background: #10b981;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.receipt-nft-minted .nft-info {
+  margin: 1rem 0;
+}
+
+.receipt-nft-minted .nft-info p {
+  margin: 0.5rem 0;
+  color: #166534;
+}
+
+.receipt-nft-minted .nft-links {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.receipt-nft-minted .nft-link {
+  padding: 0.5rem 1rem;
+  background: white;
+  color: #059669;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: 1px solid #10b981;
+}
+
+.receipt-nft-minted .nft-link:hover {
+  background: #059669;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Voucher claim section */
+.receipt-nft-claim {
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.receipt-nft-claim h4 {
+  color: #1e40af;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.receipt-nft-claim > p {
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+}
+
+/* Mint section */
+.receipt-nft-mint {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  transition: all 0.3s;
+}
+
+.receipt-nft-mint:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.connect-prompt {
+  text-align: center;
+  padding: 1rem;
+}
+
+.connect-prompt p {
+  margin: 0.5rem 0;
+  color: #6b7280;
+}
+
+.connect-prompt .hint {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.mint-info {
+  margin-bottom: 1.5rem;
+}
+
+.mint-info h4 {
+  color: #1f2937;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.mint-info > p {
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.benefits-list li {
+  padding: 0.5rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.create-voucher-button {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.create-voucher-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.create-voucher-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 8px;
+  border-left: 4px solid #ef4444;
+  font-size: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .receipt-nft-minted,
+  .receipt-nft-claim,
+  .receipt-nft-mint {
+    padding: 1rem;
+  }
+
+  .receipt-nft-minted .nft-links {
+    flex-direction: column;
+  }
+
+  .receipt-nft-minted .nft-link {
+    width: 100%;
+    text-align: center;
+  }
+
+  .create-voucher-button {
+    font-size: 0.875rem;
+    padding: 0.875rem 1.25rem;
+  }
+}

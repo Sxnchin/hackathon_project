@@ -2,7 +2,8 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import "../src/app.css";
-
+import Owners from "./owners";
+import AppButton from "./appButton.jsx";
 function Home() {
   const navigate = useNavigate();
 
@@ -33,6 +34,7 @@ function Home() {
     }
   };
 
+
   return (
     <div className="app-container">
       {/* Navbar is provided globally by the Nav component in App.jsx */}
@@ -56,6 +58,7 @@ function Home() {
     <button onClick={handleDemoClick} className="cta-btn">
       Try the Demo
     </button>
+    <AppButton></AppButton>
   </motion.div>
 </section>
 
@@ -83,6 +86,7 @@ function Home() {
           </div>
         </div>
       </section>
+
       {/* How It Works Section */}
       <section id="how-it-works" className="how-section">
         <motion.h2

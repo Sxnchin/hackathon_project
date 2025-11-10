@@ -1,8 +1,10 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../src/utils/authContext";
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("liquidSplitToken");
+  const { readToken } = useAuth();
+  const token = readToken();
   const location = useLocation();
 
   // If not logged in, redirect to login

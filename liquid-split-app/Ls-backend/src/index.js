@@ -6,10 +6,13 @@ import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 import { PrismaClient } from "@prisma/client";
 
+
 import potRoutes from "./routes/pots.js";
+import receiptsRoutes from "./routes/freshReceipts.js";
 import authRoutes from "./routes/auth.js";
 import transactionsRoutes from "./routes/transactions.js";
 import stripeRoutes, { stripeWebhook } from "./routes/stripe.js";
+import productionNFTRoutes from "./routes/productionNFT.js";
 import { auth } from "./middleware/auth.js";
 
 dotenv.config();
@@ -82,9 +85,11 @@ app.get("/health", (req, res) => res.send("💧 Ls-backend up and running!"));
 
 // ===== Routes =====
 app.use("/auth", authRoutes);                   // public (register/login)
+app.use("/pots/:potId/receipts", auth, receiptsRoutes); // protected
 app.use("/pots", auth, potRoutes);              // protected
 app.use("/transactions", auth, transactionsRoutes); // protected
 app.use("/stripe", stripeRoutes);               // protected
+app.use("/api/nft", productionNFTRoutes);       // NFT routes (some public, some protected)
 
 // ===== 404 Handler =====
 app.use((req, res) => {

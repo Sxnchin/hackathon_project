@@ -1,20 +1,18 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from "../src/utils/authContext";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
+import ReceiptNFTMint from "./ReceiptNFTMint";
+import WalletButton from "../src/components/WalletButton";
 
 /* ---------- ICONS ---------- */
 const CheckIcon = () => (
-  <svg className="w-6 h-6" style={{ color: 'var(--success-color)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className="w-6 h-6 text-green-500"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-  </svg>
-);
-
-const SpinnerIcon = () => (
-  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
   </svg>
 );
 
@@ -32,438 +30,974 @@ const SuccessIcon = () => (
   </motion.svg>
 );
 
-/* ---------- MOCK SOCKET SERVER ---------- */
-const mockSocketServer = {
-  listeners: {},
-  on(event, callback) {
-    if (!this.listeners[event]) this.listeners[event] = [];
-    this.listeners[event].push(callback);
-    console.debug(`[mockSocket] registered listener for ${event} (total ${this.listeners[event].length})`);
-  },
-  emit(event, data) {
-    console.debug(`[mockSocket] emit ${event}`, data);
-    switch (event) {
-      case 'start-split':
-        this.handleStartSplit();
-        break;
-      case 'user-paid':
-        this.handleUserPaid(data.userId);
-        break;
-      default:
-        break;
-    }
-  },
-  broadcast(event, data) {
-    console.debug(`[mockSocket] broadcast ${event}`, data);
-    if (event === 'split-complete') {
-      console.log('[mockSocket] split-complete broadcasted!', data);
-    }
-    if (this.listeners[event]) this.listeners[event].forEach((cb) => cb(data));
-  },
-  state: { totalAmount: 300, participants: [] },
-  handleStartSplit() {
-    this.state.participants = [
-      { id: 1, name: 'You', share: 100, status: 'pending' },
-      { id: 2, name: 'Alex', share: 100, status: 'paid' },   // Already authenticated
-      { id: 3, name: 'Jordan', share: 100, status: 'paid' }, // Already authenticated
-    ];
-    this.broadcast('update-split-status', this.state);
-  },
-  handleUserPaid(userId) {
-    console.debug('[mockSocket] handleUserPaid', userId);
-    const user = this.state.participants.find((p) => p.id === userId);
-    // Accept both 'pending' and 'paying' states to transition to 'paid'
-    if (user && user.status !== 'paid') {
-      const prev = user.status;
-      user.status = 'paid';
-      console.debug(`[mockSocket] user ${userId} status ${prev} -> paid`);
-      this.broadcast('update-split-status', { ...this.state });
+/* ---------------------------------------------------------------------- */
+/* ---------- MODIFIED POPUP MODAL COMPONENT (with internal state) ---------- */
+/* ---------------------------------------------------------------------- */
+const PopupModal = ({ popupData, onConfirm, onCancel }) => {
+  if (!popupData) return null;
 
-      const allPaid = this.state.participants.every((p) => p.status === 'paid');
-      if (allPaid) {
-        // Always emit split-complete reliably, even if listeners were reset
-        setTimeout(() => {
-          const n = this.state.participants.length;
-          const ownership = n > 0 ? (100 / n).toFixed(2) + '%' : '100%';
-          const receipts = this.state.participants.map((p) => ({
-            owner: p.name,
-            value: p.share,
-            ownership,
-            nftId: `0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`
-          }));
-          // Broadcast split-complete to registered listeners
-          this.broadcast('split-complete', { receipts });
-        }, 1000);
-      }
-    }
-  }
-};
-
-/* ---------- DUO AUTH POPUP ---------- */
-const DuoAuthPopup = ({ onApprove, onCancel, ttl = 60}) => {
-  const [seconds, setSeconds] = useState(ttl);
-
+  // *** FIX: Manage input value locally within the modal component ***
+  const [localInputValue, setLocalInputValue] = useState(popupData.inputValue || "");
+  
+  // Update local state if the initial value passed from parent changes
   useEffect(() => {
-    const tick = setInterval(() => setSeconds((s) => s - 1), 1000);
-    const expire = setTimeout(() => onCancel(), ttl * 1000);
-    return () => { clearInterval(tick); clearTimeout(expire); };
-  }, [onCancel, ttl]);
+    setLocalInputValue(popupData.inputValue || "");
+  }, [popupData.inputValue]);
 
+  // Use a modified confirm handler to pass the local state value back
+  const handleConfirm = () => {
+    // onConfirm is now expected to accept the final input value
+    onConfirm(localInputValue); 
+  };
+  
   return (
-    <div className="duo-overlay">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
       <motion.div
-        className="duo-box"
-        initial={{ scale: 0.8, opacity: 0 }}
+        initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        transition={{ duration: 0.3 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm text-center"
       >
-        <h3 className="duo-title">Collective Authentication</h3>
-        <p className="duo-desc">Approve login on your device to confirm payment.</p>
-        <p className="duo-timer">Expires in {seconds}s</p>
-        <div className="duo-actions">
-          <button className="approve-btn" onClick={onApprove}>✅ Approve</button>
-          <button className="cancel-btn" onClick={onCancel}>❌ Deny</button>
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          {popupData.title}
+        </h3>
+        <p className="text-gray-600 mb-4 whitespace-pre-line">{popupData.message}</p>
+
+        {popupData.type === "input" && (
+          <input
+            type={popupData.inputType || "text"}
+            placeholder={popupData.placeholder || ""}
+            className="w-full border border-gray-300 rounded-lg p-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            // *** Bind to LOCAL state ***
+            value={localInputValue}
+            onChange={(e) => setLocalInputValue(e.target.value)}
+          />
+        )}
+
+        <div className="flex justify-center gap-3">
+          {popupData.showCancel && (
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            onClick={handleConfirm} // *** Use local handler ***
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
+          >
+            OK
+          </button>
         </div>
       </motion.div>
     </div>
   );
 };
 
-/* ---------- MAIN DEMO COMPONENT ---------- */
+/* ---------- Helper ---------- */
+const getAuthHeaders = () => {
+  const token =
+    localStorage.getItem("liquidSplitToken") || localStorage.getItem("token");
+  return token
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    : { "Content-Type": "application/json" };
+};
+
+/* ---------- MAIN DEMO ---------- */
 function Demo() {
-  const TOTAL_AMOUNT = 300;
-
-  // Recalculate per-user shares (dollars) for the DEMO total
-  const recalcShares = (arr) => {
-    const n = arr.length;
-    if (n === 0) return [];
-    const base = Math.floor((TOTAL_AMOUNT / n) * 100) / 100;
-    const remainder = Math.round((TOTAL_AMOUNT - base * n) * 100) / 100;
-    return arr.map((p, i) => ({ ...p, share: i === 0 ? Number((base + remainder).toFixed(2)) : Number(base.toFixed(2)) }));
-  };
-
-  // Add participant before split starts
-  const handleAddMember = () => {
-    // Only allow adding users not already in participants
-    const available = seededUsers.filter(u => !participants.some(p => p.id === u.id));
-    if (available.length === 0) return alert("All members added!");
-    const name = prompt("Add member (choose: " + available.map(u => u.name).join(", ") + "):");
-    const user = available.find(u => u.name.toLowerCase() === name?.trim().toLowerCase());
-    if (user) {
-      setParticipants(prev => recalcShares([...prev, { ...user, status: 'pending' }]));
-    } else if (name) {
-      alert("User not found or already added.");
-    }
-  };
-
-  // Remove participant before split starts
-  const handleRemoveMember = (id) => {
-    setParticipants(prev => recalcShares(prev.filter(p => p.id !== id)));
-  };
-  const { user: currentUser, login } = useAuth();
-  // Seeded users - will fetch from backend for demo
-  const [seededUsers, setSeededUsers] = useState([]);
-  // Participants state (before split starts)
+  const [potId, setPotId] = useState(null);
+  const [potReady, setPotReady] = useState(false);
+  const [availablePots, setAvailablePots] = useState([]);
+  const [showPotSelector, setShowPotSelector] = useState(true);
+  const [newPotName, setNewPotName] = useState("");
   const [participants, setParticipants] = useState([]);
-  const [splitState, setSplitState] = useState(null);
-  const [receipts, setReceipts] = useState([]);
-  const [isSplitting, setIsSplitting] = useState(false);
+  const [splitStarted, setSplitStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [showDuo, setShowDuo] = useState(false);
-  const [pendingUser, setPendingUser] = useState(null);
-  const [duoApproved, setDuoApproved] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [receipts, setReceipts] = useState([]);
+  const [authModal, setAuthModal] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [showReceipts, setShowReceipts] = useState(false);
+  const [popupData, setPopupData] = useState(null);
+  // tempInput state is no longer used for controlling the input value, 
+  // but it's kept to maintain the structure of other logic if it relied on it.
+  const [tempInput, setTempInput] = useState("");
 
+  const hasRequestedPot = useRef(false);
+
+  /* --- Load Available Pots on Mount --- */
   useEffect(() => {
-    // fetch users from backend
-    (async () => {
+    async function loadPots() {
       try {
-        const res = await fetch('http://localhost:4000/auth/users');
-        const data = await res.json();
-        if (res.ok) setSeededUsers(data.users || []);
-      } catch (err) {
-        console.warn('Could not fetch users', err);
-      }
-    })();
+        const potsRes = await fetch("http://localhost:4000/pots", {
+          headers: getAuthHeaders(),
+        });
 
-    // Always clear and re-register listeners before split starts
-    mockSocketServer.listeners = {};
-    mockSocketServer.on('update-split-status', (newState) => {
-      console.debug('[Demo] update-split-status', newState);
-      setSplitState(newState);
-    });
-      // split-complete should only result in receipts when Duo was approved.
-      const splitCompleteListener = (data) => {
-        if (!duoApprovedRef.current) {
-          console.debug('[Demo] split-complete received but Duo not approved - ignoring');
+        if (potsRes.status === 401) {
+          setPopupData({
+            title: "Login Required",
+            message: "You must log in before starting a split.",
+            onConfirm: () => (window.location.href = "/login"),
+          });
           return;
         }
-        console.debug('[Demo] split-complete', data);
-        setIsComplete(true);
-        setTimeout(() => setReceipts(data.receipts), 2000);
-      };
-      mockSocketServer.on('split-complete', splitCompleteListener);
-    if (isSplitting) {
-      // Register listeners BEFORE any payment events
-      setTimeout(() => {
-        mockSocketServer.broadcast('update-split-status', mockSocketServer.state);
-      }, 0);
-    }
-  }, [isSplitting]);
 
-  // Use a ref to provide current duo approval state to socket listeners
-  const duoApprovedRef = useRef(duoApproved);
-  useEffect(() => { duoApprovedRef.current = duoApproved; }, [duoApproved]);
-
-  const handleStartSplit = () => {
-    // When split starts, auto-pay all except current user, who gets Duo popup
-    if (participants.length === 0) return alert("Add at least one participant!");
-    // If user is logged in, use their id; otherwise, use the first participant's id
-    const pendingId = currentUser?.id ?? (participants.length > 0 ? participants[0].id : null);
-    const initial = recalcShares(participants).map(p => ({ ...p, status: p.id === pendingId ? 'pending' : 'paid' }));
-    // Update the mock server state first so emits find participants
-    mockSocketServer.state.participants = initial;
-    mockSocketServer.state.totalAmount = TOTAL_AMOUNT;
-    setSplitState({ totalAmount: TOTAL_AMOUNT, participants: initial });
-  setIsSplitting(true);
-  // Reset duo approval for a fresh run
-  setDuoApproved(false);
-    console.debug('[Demo] handleStartSplit', { initial, pendingId });
-    // If there are others, auto-pay them
-    initial.forEach(p => {
-      if (p.id !== pendingId) {
-        setTimeout(() => {
-          mockSocketServer.emit('user-paid', { userId: p.id });
-        }, 500);
+        const potsData = await potsRes.json();
+        setAvailablePots(potsData.pots || []);
+      } catch (err) {
+        console.error("❌ Failed to load pots:", err);
       }
-    });
-    // For pending payer, show Duo popup if present
-    if (pendingId) {
-      setPendingUser(pendingId);
-      setShowDuo(true);
+    }
+    loadPots();
+  }, []);
+
+  /* --- Select or Create Pot --- */
+  const handleSelectPot = async (selectedPotId) => {
+    try {
+      setPotId(selectedPotId);
+      setShowPotSelector(false);
+      
+      // Load existing members for this pot
+      const potRes = await fetch(`http://localhost:4000/pots/${selectedPotId}`, {
+        headers: getAuthHeaders(),
+      });
+      const potData = await potRes.json();
+      
+      // Map existing members to participants format
+      const existingMembers = potData.members.map((m) => ({
+        id: m.userId,
+        name: m.user.name,
+        share: m.share,
+        status: "pending",
+      }));
+      
+      setParticipants(existingMembers);
+      const total = existingMembers.reduce((sum, m) => sum + parseFloat(m.share || 0), 0);
+      setTotal(total);
+      setPotReady(true);
+      
+      console.log("✅ Loaded pot:", selectedPotId, "with", existingMembers.length, "members");
+    } catch (err) {
+      console.error("❌ Failed to load pot:", err);
+      setPopupData({
+        title: "Error",
+        message: "Failed to load pot. Please try again.",
+      });
     }
   };
 
-
-  // Unified handlePay: supports Duo auth for user 1, backend sync for all
-  const handlePay = (userId) => {
-    const user = splitState?.participants?.find((p) => p.id === userId);
-    if (!user || user.status !== 'pending') return;
-    // If this is the pending payer, show Duo popup
-    if (user.id === pendingUser) {
-      setPendingUser(userId);
-      setShowDuo(true);
+  const handleCreateNewPot = async () => {
+    if (!newPotName.trim()) {
+      setPopupData({
+        title: "Invalid Input",
+        message: "Please enter a pot name.",
+      });
       return;
     }
-    // Otherwise, run backend sync and mark as paying
-    const newParticipants = splitState.participants.map((p) =>
-      p.id === userId ? { ...p, status: 'paying' } : p
-    );
-    setSplitState({ ...splitState, participants: newParticipants });
-    setTimeout(async () => {
-      const n = splitState.participants.length;
-      try {
-        const payer = seededUsers.find(u => u.id === userId);
-        const participant = splitState.participants.find(p => p.id === userId) || participants.find(p => p.id === userId);
-        const share = participant?.share || 0;
-        if (payer) {
-          const newBalance = Number(payer.balance || 0) - Number(share || 0);
-          const res = await fetch('http://localhost:4000/auth/set-balance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: payer.email, name: payer.name, balance: newBalance }),
-          });
-          const data = await res.json();
-          if (res.ok && data.user) {
-            setSeededUsers((prev) => prev.map(u => u.id === data.user.id ? data.user : u));
-            if (currentUser && currentUser.email === data.user.email) {
-              login(localStorage.getItem('liquidSplitToken'), data.user);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Could not update payer balance', err);
-      }
-      mockSocketServer.emit('user-paid', { userId, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
-    }, 1500);
-  };
 
-  // Approve Duo: backend sync and mark as paid
-  const approveDuo = () => {
-    setShowDuo(false);
-    if (pendingUser) {
-      // Mark that Duo was approved
-      setDuoApproved(true);
-      // Mark as paying, then backend sync
-      const newParticipants = splitState.participants.map((p) =>
-        p.id === pendingUser ? { ...p, status: 'paying' } : p
-      );
-      setSplitState({ ...splitState, participants: newParticipants });
-      setTimeout(async () => {
-        const n = splitState.participants.length;
-        try {
-          const payer = seededUsers.find(u => u.id === pendingUser);
-          const participant = splitState.participants.find(p => p.id === pendingUser) || participants.find(p => p.id === pendingUser);
-          const share = participant?.share || 0;
-          if (payer) {
-            const newBalance = Number(payer.balance || 0) - Number(share || 0);
-            const res = await fetch('http://localhost:4000/auth/set-balance', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: payer.email, name: payer.name, balance: newBalance }),
-            });
-            const data = await res.json();
-            if (res.ok && data.user) {
-              setSeededUsers((prev) => prev.map(u => u.id === data.user.id ? data.user : u));
-              if (currentUser && currentUser.email === data.user.email) {
-                login(localStorage.getItem('liquidSplitToken'), data.user);
-              }
-            }
-          }
-        } catch (err) {
-          console.warn('Could not update payer balance', err);
-        }
-        // Always emit user-paid after Duo approval to trigger split-complete reliably
-        mockSocketServer.emit('user-paid', { userId: pendingUser, ownership: n > 0 ? (100 / n).toFixed(2) + '%' : '100%' });
-        setPendingUser(null);
-        // Do NOT set isComplete here; rely on split-complete event for receipts
-      }, 1500);
+    try {
+      const res = await fetch("http://localhost:4000/pots", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name: newPotName.trim() }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create pot");
+      }
+
+      const data = await res.json();
+      const createdPot = data?.pot || data;
+      
+      if (createdPot?.id) {
+        console.log("✅ Created new pot:", createdPot.id);
+        setPotId(createdPot.id);
+        setShowPotSelector(false);
+        setPotReady(true);
+        setNewPotName("");
+        window.dispatchEvent(new Event("pots:refresh"));
+      }
+    } catch (err) {
+      console.error("❌ Pot creation failed:", err);
+      setPopupData({
+        title: "Error",
+        message: `Failed to create pot: ${err.message}`,
+      });
     }
   };
 
-  const cancelDuo = () => {
-    setShowDuo(false);
-    setPendingUser(null);
-    setDuoApproved(false);
-    alert("Authentication timed out or denied.");
+  /* ---------------------------------------------------------------------- */
+  /* --- Add Member (MODIFIED to rely on Modal's confirmation value) --- */
+  /* ---------------------------------------------------------------------- */
+  const handleAddMember = () => {
+    if (!potId) {
+      setPopupData({
+        title: "Please Wait",
+        message: "Demo Pot is loading... Please try again in a moment.",
+      });
+      return;
+    }
+
+    setPopupData({
+      title: "Add Member",
+      message: "Enter the name of the member you'd like to add.",
+      type: "input",
+      placeholder: "e.g., Jane Doe",
+      inputValue: "",
+      showCancel: true,
+      onConfirm: (inputName) => {
+        const trimmedName = (inputName ?? "").trim();
+        if (!trimmedName) {
+          setPopupData({
+            title: "Invalid Name",
+            message: "Member name cannot be empty.",
+          });
+          return;
+        }
+
+        setPopupData(null);
+        proceedAddMember(trimmedName);
+      },
+    });
   };
 
-  // participants is always splitState?.participants || [] below
-  const liveParticipants = isSplitting ? (splitState?.participants ?? []) : participants;
-  const paidCount = liveParticipants.filter(p => p.status === 'paid').length || 0;
-  const totalCount = liveParticipants.length || 0;
-  const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+  const proceedAddMember = async (name) => {
+    try {
+      const usersRes = await fetch("http://localhost:4000/auth/users", {
+        headers: getAuthHeaders(),
+      });
+      const { users } = await usersRes.json();
 
-  // Safety net: if splitState shows all participants paid, mark as complete and generate receipts
-  useEffect(() => {
-    if (!splitState) return;
-    const allPaid = (splitState.participants || []).every((p) => p.status === 'paid');
-    console.debug('[Demo] splitState change -> allPaid?', allPaid, splitState.participants?.map(p => ({ id: p.id, status: p.status })));
-    if (allPaid && !isComplete) {
-      // Only show receipts if Duo was approved for the pending payer
-      if (!duoApproved) {
-        console.debug('[Demo] All participants paid but Duo not approved - waiting for approval');
+        const user = users.find(
+          (u) => u.name.toLowerCase() === name.toLowerCase()
+        );
+        if (!user) {
+          setPopupData({
+            title: "User Not Found",
+            message: `User "${name}" not found. Please have them sign up first.`,
+          });
+          return;
+        }
+
+      setPopupData({
+        title: "Contribution",
+        message: `${user.name}'s current balance: $${user.balance.toFixed(
+          2
+        )}\nEnter amount to contribute:`,
+        type: "input",
+        inputType: "number",
+        inputValue: "", // Initial value for the contribution input
+        showCancel: true,
+        // *** MODIFIED: The function now accepts the input value 'shareString' ***
+        onConfirm: async (shareString) => {
+          const share = parseFloat(shareString);
+          if (isNaN(share) || share <= 0) {
+            setPopupData({
+              title: "Invalid Amount",
+              message: "Please enter a valid positive number.",
+            });
+            return;
+          }
+          if (share > user.balance) {
+            setPopupData({
+              title: "Insufficient Balance",
+              message: `${user.name} cannot contribute more than their balance.`,
+            });
+            return;
+          }
+          setPopupData(null);
+          await addMemberToPot(user, share);
+        },
+        // setInputValue is no longer strictly needed but kept as placeholder
+        setInputValue: setTempInput, 
+      });
+    } catch (err) {
+      console.error("❌ Add member failed:", err);
+      setPopupData({
+        title: "Error",
+        message: err.message || "Failed to add member. Please try again.",
+      });
+    }
+  };
+
+  const addMemberToPot = async (user, share) => {
+    try {
+      if (!potId) {
+        console.error("❌ No pot ID available. Current potId:", potId);
+        setPopupData({
+          title: "Error",
+          message: "Demo Pot not ready yet. Please refresh the page and try again.",
+        });
         return;
       }
-      console.debug('[Demo] All participants paid detected in splitState - generating receipts locally');
-      setIsComplete(true);
-      const n = splitState.participants.length;
-      const ownership = n > 0 ? (100 / n).toFixed(2) + '%' : '100%';
-      const receiptsLocal = splitState.participants.map((p) => ({
-        owner: p.name,
-        value: p.share,
-        ownership,
-        nftId: `0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
-      }));
-      // Slight delay to match existing UX timing
-      setTimeout(() => setReceipts(receiptsLocal), 800);
-    }
-  }, [splitState, isComplete]);
 
-  // Remove auto-complete logic: rely on split-complete event for receipts and completion
+      console.log("📤 Adding member to pot:", { potId, userId: user.id, share });
+      const res = await fetch(`http://localhost:4000/pots/${potId}/members`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ userId: user.id, share }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to add member to backend");
+      }
+
+      await fetch("http://localhost:4000/auth/set-balance", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          email: user.email,
+          newBalance: user.balance - share,
+        }),
+      });
+
+      const potRes = await fetch(`http://localhost:4000/pots/${potId}`, {
+        headers: getAuthHeaders(),
+      });
+      const potData = await potRes.json();
+
+      setParticipants(
+        potData.members.map((m) => ({
+          id: m.userId,
+          name: user.name,
+          share: m.share,
+          status: "pending",
+        }))
+      );
+
+      const newTotal = potData.members.reduce(
+        (sum, m) => sum + parseFloat(m.share || 0),
+        0
+      );
+      setTotal(newTotal);
+
+      setPopupData({
+        title: "Member Added",
+        message: `${user.name} has been added successfully!`,
+      });
+    } catch (err) {
+      console.error("❌ Add member to pot failed:", err);
+      setPopupData({
+        title: "Failed to Add Member",
+        message: err.message || "Could not add member to pot. Please try again.",
+      });
+    }
+  };
+/* ---------------------------------------------------------------------- */
+
+  /* --- Start Split --- */
+  const handleStartSplit = () => {
+    if (participants.length < 2) {
+      setPopupData({
+        title: "Not Enough Members",
+        message: "You need at least 2 members to start the split!",
+      });
+      return;
+    }
+    setSplitStarted(true);
+  };
+
+  /* --- Auth Modal Flow --- */
+  const openAuthenticator = (user) => {
+    setAuthModal({ user, countdown: 15 });
+
+    const timer = setInterval(() => {
+      setAuthModal((prev) => {
+        if (!prev) return prev;
+        if (prev.countdown <= 1) {
+          clearInterval(timer);
+          return null;
+        }
+        return { ...prev, countdown: prev.countdown - 1 };
+      });
+    }, 1000);
+  };
+
+  const approvePayment = (user) => {
+    setAuthLoading(true);
+    setTimeout(async () => {
+      setAuthLoading(false);
+      setAuthModal(null);
+      try {
+        await handlePaymentSuccess(user.id);
+      } catch (err) {
+        console.error("❌ Payment flow failed:", err);
+        alert("We couldn't finalize that payment. Please try again.");
+      }
+    }, 2000);
+  };
+
+  const denyPayment = () => {
+    setPopupData({
+      title: "Payment Denied",
+      message: "Authentication denied. Payment cancelled.",
+    });
+    setAuthModal(null);
+  };
+
+  /* --- Payment Success Flow --- */
+  const handlePaymentSuccess = async (id) => {
+    setParticipants((prev) => {
+      const updated = prev.map((p) =>
+        p.id === id ? { ...p, status: "paid" } : p
+      );
+      const allPaid = updated.every((p) => p.status === "paid");
+      if (allPaid) setIsComplete(true);
+      return updated;
+    });
+
+    const payer = participants.find((p) => p.id === id);
+    if (!payer) return;
+
+    const shareValue = Number(payer.share) || 0;
+    const ownershipShare = `${(100 / Math.max(participants.length, 1)).toFixed(
+      2
+    )}%`;
+    const nftId = `0x${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+
+    if (!potId) {
+      setReceipts((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          owner: payer.name,
+          value: shareValue,
+          ownership: ownershipShare,
+          nftId,
+          timestamp: new Date().toISOString(),
+          txHash: `0x${Math.random()
+            .toString(16)
+            .slice(2, 10)
+            .toUpperCase()}`,
+        },
+      ]);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:4000/pots/${potId}/receipts`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            payerId: payer.id,
+            amount: shareValue,
+            description: JSON.stringify({ ownership: ownershipShare, nftId }),
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        const message = data?.error || "Failed to save receipt.";
+        throw new Error(message);
+      }
+
+      const receipt = data.receipt;
+      setReceipts((prev) => [
+        ...prev,
+        {
+          id: receipt.id,
+          owner: receipt.payer?.name || payer.name,
+          value: Number(receipt.amount) || shareValue,
+          ownership: ownershipShare,
+          nftId,
+          timestamp: receipt.timestamp,
+          txHash: `0x${receipt.id
+            .toString(16)
+            .padStart(8, "0")
+            .toUpperCase()}`,
+        },
+      ]);
+    } catch (err) {
+      console.error("❌ Saving receipt failed:", err);
+      setReceipts((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          owner: payer.name,
+          value: shareValue,
+          ownership: ownershipShare,
+          nftId,
+          timestamp: new Date().toISOString(),
+          txHash: `0x${Math.random()
+            .toString(16)
+            .slice(2, 10)
+            .toUpperCase()}`,
+          error: true,
+        },
+      ]);
+    }
+  };
+
+  useEffect(() => {
+    if (isComplete) {
+      const timer = setTimeout(() => {
+        setShowReceipts(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isComplete]);
+
+  useEffect(() => {
+    if (!showReceipts || !potId) return;
+
+    async function fetchReceipts() {
+      try {
+        const response = await fetch(
+          `http://localhost:4000/pots/${potId}/receipts`,
+          { headers: getAuthHeaders() }
+        );
+        if (!response.ok) {
+          console.error("❌ Failed to load receipts:", response.statusText);
+          return;
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data.receipts)) return;
+
+        const fallbackOwnership = `${(
+          100 / Math.max(participants.length, 1)
+        ).toFixed(2)}%`;
+
+        const hydrated = data.receipts.map((receipt) => {
+          let metadata = {};
+          if (receipt.description) {
+            try {
+              metadata = JSON.parse(receipt.description);
+            } catch (err) {
+              console.warn("⚠️ Could not parse receipt metadata:", err);
+            }
+          }
+
+          const baseId = receipt.id
+            .toString(16)
+            .padStart(8, "0")
+            .toUpperCase();
+
+          return {
+            ...receipt, // Include all receipt fields (nftMinted, nftClaimable, etc.)
+            id: receipt.id,
+            owner: receipt.payer?.name || "Unknown",
+            value: Number(receipt.amount) || 0,
+            ownership: metadata.ownership || fallbackOwnership,
+            nftId: metadata.nftId || `0x${baseId}`,
+            timestamp: receipt.timestamp,
+            txHash: `0x${baseId}`,
+          };
+        });
+
+        setReceipts(hydrated);
+      } catch (error) {
+        console.error("❌ Fetch receipts failed:", error);
+      }
+    }
+
+    fetchReceipts();
+  }, [showReceipts, potId, participants.length]);
 
   return (
     <div className="demo-page-container">
-      <motion.div className="demo-card-modern" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-        <div className="demo-header">
-          <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
-          <p className="text-gray-500 mt-2">Mock checkout with Duo-style authentication.</p>
+      {/* Pot Selector Modal */}
+      {showPotSelector && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              padding: "2rem",
+              maxWidth: "500px",
+              width: "90%",
+              maxHeight: "80vh",
+              overflow: "auto"
+            }}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: "1rem" }}>Select or Create a Pot</h2>
+            
+            {/* Existing Pots */}
+            {availablePots.length > 0 && (
+              <>
+                <h3 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#666" }}>
+                  Use Existing Pot
+                </h3>
+                <div style={{ marginBottom: "1.5rem" }}>
+                  {availablePots.map((pot) => (
+                    <button
+                      key={pot.id}
+                      onClick={() => handleSelectPot(pot.id)}
+                      style={{
+                        width: "100%",
+                        padding: "0.75rem 1rem",
+                        marginBottom: "0.5rem",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        background: "white",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{pot.name}</div>
+                        <div style={{ fontSize: "0.85rem", color: "#666" }}>
+                          {pot.members?.length || 0} members · ${pot.totalAmount?.toFixed(2) || "0.00"}
+                        </div>
+                      </div>
+                      <span style={{ color: "#6366f1" }}>→</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Create New Pot */}
+            <h3 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#666" }}>
+              Or Create New Pot
+            </h3>
+            <input
+              type="text"
+              placeholder="Enter pot name (e.g., 'Weekend Trip')"
+              value={newPotName}
+              onChange={(e) => setNewPotName(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleCreateNewPot()}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                fontSize: "1rem",
+                marginBottom: "1rem"
+              }}
+            />
+            <button 
+              onClick={handleCreateNewPot}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                border: "none",
+                borderRadius: "8px",
+                background: "#6366f1",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "1rem",
+                fontWeight: "500"
+              }}
+            >
+              Create New Pot
+            </button>
+            <button
+              onClick={() => setShowPotSelector(false)}
+              style={{
+                width: "100%",
+                marginTop: "0.75rem",
+                padding: "0.75rem",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                background: "white",
+                color: "#555",
+                cursor: "pointer",
+                fontSize: "1rem",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <motion.div
+        className="demo-card-modern"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="demo-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">LiquidSplit Demo</h2>
+            <p className="text-gray-500 mt-2">
+              Add members, approve payments, and generate receipts.
+            </p>
+            <button
+              onClick={() => setShowPotSelector(true)}
+              style={{
+                marginTop: "0.5rem",
+                padding: "0.5rem 1rem",
+                background: "transparent",
+                border: "1px solid #6366f1",
+                borderRadius: "6px",
+                color: "#6366f1",
+                cursor: "pointer",
+                fontSize: "0.875rem"
+              }}
+            >
+              {potReady ? "Change Pot" : "Select Pot"}
+            </button>
+          </div>
+          <WalletButton />
         </div>
 
         <div className="demo-content-grid">
           <div className="checkout-panel">
-            <div className="item-row">
-              <h3 className="text-xl font-semibold">Smart 4K TV</h3>
-              <p className="text-2xl font-bold text-gray-800">$300.00</p>
-            </div>
-
             <div className="participants-section">
-              <h4 style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <span>Participants</span>
-                {!isSplitting && (
-                  <button onClick={handleAddMember} className="add-people action-btn-modern" style={{marginLeft: 'auto', marginRight: 0}}>Add Members to Group</button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h4 style={{ fontWeight: 600 }}>Participants</h4>
+                {!splitStarted && (
+                  <button
+                    onClick={handleAddMember}
+                    className="add-people action-btn-modern"
+                    style={{ marginLeft: "1rem", opacity: potReady ? 1 : 0.5 }}
+                    disabled={!potReady}
+                  >
+                    {potReady ? "Add Member" : "Loading..."}
+                  </button>
                 )}
-              </h4>
-              <div className="space-y-3">
-                {liveParticipants.map((user) => (
-                  <div key={user.id} className="participant-row-modern" style={{position: 'relative'}}>
-                    <span className="font-medium text-gray-700">{user.name}</span>
-                    <span className="text-gray-600 font-semibold">${user.share.toFixed(2)}</span>
-                    {!isSplitting && (
-                      <button
-                        className="remove-member-btn"
-                        style={{position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a1a1aa', fontSize: '1.5rem', cursor: 'pointer'}}
-                        title="Remove"
-                        onClick={() => handleRemoveMember(user.id)}
-                      >
-                        &times;
-                      </button>
-                    )}
-                    {isSplitting && user.status === 'pending' && (
-                      <button onClick={() => handlePay(user.id)} className="pay-btn-modern">Pay</button>
-                    )}
-                    {isSplitting && user.status === 'paid' && <CheckIcon />}
-                  </div>
-                ))}
               </div>
+
+              <div className="space-y-3 mt-4">
+                {participants.length === 0 ? (
+                  <p className="text-gray-400 italic text-sm">
+                    No participants yet.
+                  </p>
+                ) : (
+                  participants.map((user) => (
+                    <div
+                      key={user.id}
+                      className="participant-row-modern flex items-center justify-between"
+                    >
+                      <span className="font-medium text-gray-700">
+                        {user.name}
+                      </span>
+                      <span className="text-gray-600 font-semibold">
+                        ${user.share.toFixed(2)}
+                      </span>
+                      {splitStarted && (
+                        user.status === "pending" ? (
+                          <div className="participant-actions">
+                            <button
+                              onClick={() => openAuthenticator(user)}
+                              className="pay-btn-modern"
+                            >
+                              Pay
+                            </button>
+                            <button
+                              onClick={() => handleWithdraw(user)}
+                              className="demo-withdraw-btn"
+                            >
+                              Withdraw
+                            </button>
+                          </div>
+                        ) : (
+                          <CheckIcon />
+                        )
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {participants.length > 0 && (
+                <div className="mt-5 text-right text-gray-700 font-semibold">
+                  Total: ${total.toFixed(2)}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="action-panel-modern">
-            {!isSplitting ? (
-              <button onClick={handleStartSplit} className="start-split-btn-modern" style={{ marginTop: '1rem' }}>
-                Start Split Purchase
+          <div className="action-panel-modern text-center">
+            {!splitStarted && !isComplete && (
+              <button
+                onClick={handleStartSplit}
+                className="start-split-btn-modern mt-6"
+              >
+                Start Split
               </button>
-            ) : !isComplete ? (
-              <div className="text-center w-full">
-                <h3 className="text-xl font-semibold text-gray-700">Awaiting Payments...</h3>
-                <p className="text-gray-500 mt-2">{paidCount} of {totalCount} participants have paid.</p>
-                <div className="progress-bar-container">
-                  <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                </div>
-              </div>
-            ) : receipts.length === 0 ? (
-              <div className="text-center w-full">
+            )}
+
+            {splitStarted && !isComplete && (
+              <p className="text-gray-500 mt-4">
+                Waiting for payments...{" "}
+                {participants.filter((p) => p.status === "paid").length} /{" "}
+                {participants.length} paid
+              </p>
+            )}
+
+            {isComplete && !showReceipts && (
+              <div className="text-center mt-6">
                 <SuccessIcon />
-                <h3 className="text-2xl font-semibold text-green-600 mt-4">Payment Successful!</h3>
-                <p className="text-gray-500 mt-2">Generating receipts...</p>
+                <h3 className="text-2xl font-semibold text-green-600 mt-4">
+                  Split Complete!
+                </h3>
+                <p className="text-gray-500 mt-2">
+                  Everyone has paid successfully.
+                </p>
               </div>
-            ) : (
-              <div className="w-full">
-                <h3 className="text-2xl font-semibold text-green-600 text-center mb-4">Split Complete!</h3>
-                <div className="space-y-3">
-                  {receipts.map((receipt, i) => (
-                    <div key={i} className="receipt-card-modern" style={{ animationDelay: `${i * 150}ms` }}>
-                      <p className="font-bold text-gray-800">{receipt.owner}'s Digital Receipt</p>
-                      <div className="flex justify-between text-sm text-gray-600 mt-1">
-                        <span>Value: ${receipt.value.toFixed(2)}</span>
-                        <span>Ownership: {receipt.ownership}</span>
+            )}
+
+            {showReceipts && (
+              <motion.div
+                className="mt-8 flex flex-col items-center"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.1 },
+                  },
+                  hidden: { opacity: 0 },
+                }}
+              >
+                <h4 className="font-semibold text-gray-800 mb-3">Receipts</h4>
+                <div className="flex flex-col gap-4 items-center w-full max-w-2xl">
+                  {receipts.map((r, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 20, boxShadow: "0 0 0 rgba(0, 255, 0, 0)" }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        boxShadow: [
+                          "0 0 0 rgba(0, 255, 0, 0)",
+                          "0 0 15px rgba(34,197,94,0.5)",
+                          "0 0 0 rgba(0, 255, 0, 0)",
+                        ],
+                      }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                      className="receipt-card-modern border border-gray-200 rounded-xl bg-white shadow-sm p-4 w-full relative"
+                    >
+                      <div className="mb-3">
+                        <h5 className="font-semibold text-gray-900 text-base mb-1">
+                          {r.owner} — ${r.value.toFixed(2)}
+                        </h5>
+                        <p className="text-gray-600 text-xs">
+                          Ownership: <span className="font-medium">{r.ownership}</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400 italic mt-1">
+                          Issued {new Date(r.timestamp).toLocaleString()}
+                        </p>
                       </div>
-                      <p className="text-xs text-indigo-500 mt-2 font-mono">NFT ID: {receipt.nftId}</p>
-                    </div>
+
+                      {/* NFT Minting Integration */}
+                      <ReceiptNFTMint 
+                        receipt={r} 
+                        potId={potId} 
+                        onSuccess={() => {
+                          // Refresh receipts after NFT action
+                          const fetchUpdated = async () => {
+                            try {
+                              const response = await fetch(
+                                `http://localhost:4000/pots/${potId}/receipts`,
+                                { headers: getAuthHeaders() }
+                              );
+                              const data = await response.json();
+                              if (Array.isArray(data.receipts)) {
+                                const fallbackOwnership = `${(100 / Math.max(participants.length, 1)).toFixed(2)}%`;
+                                const hydrated = data.receipts.map((receipt) => {
+                                  let metadata = {};
+                                  try {
+                                    if (receipt.description) metadata = JSON.parse(receipt.description);
+                                  } catch (err) {}
+                                  const baseId = receipt.id.toString(16).padStart(8, "0").toUpperCase();
+                                  return {
+                                    ...receipt,
+                                    owner: receipt.payer?.name || "Unknown",
+                                    value: Number(receipt.amount) || 0,
+                                    ownership: metadata.ownership || fallbackOwnership,
+                                    nftId: metadata.nftId || `0x${baseId}`,
+                                    timestamp: receipt.timestamp,
+                                    txHash: `0x${baseId}`,
+                                  };
+                                });
+                                setReceipts(hydrated);
+                              }
+                            } catch (err) {
+                              console.error("Failed to refresh receipts:", err);
+                            }
+                          };
+                          fetchUpdated();
+                        }} 
+                      />
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
         </div>
       </motion.div>
 
-      <Link to="/" className="back-link-modern">&larr; Back to Home</Link>
+       {/* ✅ DUO-STYLE AUTHENTICATOR POP-UP */}
+      {authModal && (
+        <div className="duo-overlay">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="duo-box"
+          >
+            <h3 className="duo-title">
+              Approve this transaction with your authenticator
+            </h3>
+            <p className="duo-desc">Please confirm this payment to proceed.</p>
+            <p className="duo-timer">
+              This request will expire in {authModal.countdown}s
+            </p>
 
+            {authLoading ? (
+              <div>
+                <div className="loader mx-auto mb-3"></div>
+                <p>Authenticating...</p>
+              </div>
+            ) : (
+              <div className="duo-actions">
+                <button
+                  onClick={() => approvePayment(authModal.user)}
+                  className="approve-btn"
+                >
+                  Approve
+                </button>
+                <button onClick={denyPayment} className="cancel-btn">
+                  Deny
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+      {/* ✅ GENERIC POP-UP MODAL (Now uses internal state for input) */}
       <AnimatePresence>
-        {showDuo && <DuoAuthPopup onApprove={approveDuo} onCancel={cancelDuo} ttl={15} />}
+        <PopupModal
+          popupData={popupData}
+          // The onConfirm function passed here is the one defined in handleAddMember/proceedAddMember, 
+          // which now expects the input value as its first argument.
+          onConfirm={popupData?.onConfirm || (() => setPopupData(null))}
+          onCancel={() => setPopupData(null)}
+        />
       </AnimatePresence>
+
+      <Link to="/" className="back-link-modern">
+        &larr; Back to Home
+      </Link>
     </div>
   );
 }

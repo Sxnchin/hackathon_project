@@ -1,39 +1,66 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// ✅ Capitalized imports (match your actual filenames exactly)
+// ✅ Import Components (match the filenames & capitalization exactly)
 import Nav from "../components/nav";
-import Home from "../components/Home";
-import GetStarted from "../components/GetStarted";
+import Home from "../components/home";
+import GetStarted from "../components/getStarted";
 import Demo from "../components/demo";
 import OnboardSuccess from "../components/onboardSuccess";
-import Login from "../components/Login";
+import Login from "../components/login";
 import Profile from "../components/profile";
+import Pots from "../components/pots";
+import FreshNFTs from "../components/FreshNFTs";
+import Owners from "../components/owners";
+import NFTDemo from "./components/NFTDemo";
+
+// ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
+
+// ✅ Web3 Context
+import { Web3Provider } from "./utils/web3Context";
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Nav />
-        <Routes>
-        {/* 🏠 Homepage */}
-        <Route path="/" element={<Home />} />
+      <Web3Provider>
+        <Router>
+          {/* 🔝 Global Navbar (shows on all pages) */}
+          <Nav />
 
-        {/* 📝 Sign Up Page */}
-        <Route path="/get-started" element={<GetStarted />} />
+          {/* 🧭 Route Configuration */}
+          <Routes>
+            {/* 🏠 Homepage */}
+            <Route path="/" element={<Home />} />
 
-  {/* 💳 Demo Page */}
-  <Route path="/demo" element={<Demo />} />
+            {/* 📝 Sign Up Page */}
+            <Route path="/get-started" element={<GetStarted />} />
 
-  {/* Stripe Onboarding return */}
-  <Route path="/onboard/success" element={<OnboardSuccess />} />
+            {/* 💳 Demo Page */}
+            <Route path="/demo" element={<Demo />} />
 
-        {/* 🔐 Login Page */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/profile" element={<Profile />} />
-        </Routes>
-      </Router>
+            <Route path = "/owners" element = {<Owners />} />
+            
+            {/* 🎨 NFT Minting Demo */}
+            <Route path="/nft-demo" element={<NFTDemo />} />
+            
+            {/* ✅ Stripe Onboarding Return */}
+            <Route path="/onboard/success" element={<OnboardSuccess />} />
+
+            {/* 🔐 Login Page */}
+            <Route path="/login" element={<Login />} />
+
+            {/* 👤 Profile Page */}
+            <Route path="/profile" element={<Profile />} />
+
+            {/* 🪣 Your Pots Page */}
+            <Route path="/pots" element={<Pots />} />
+
+            {/* 🎨 Fresh NFT Collection */}
+            <Route path="/pots/:potId/nfts" element={<FreshNFTs />} />
+          </Routes>
+        </Router>
+      </Web3Provider>
     </AuthProvider>
   );
 }
