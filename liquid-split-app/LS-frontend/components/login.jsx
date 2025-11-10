@@ -6,9 +6,11 @@ import "../src/styles/auth.css";
 // Login attempt tracking constants
 const MAX_LOGIN_ATTEMPTS = 5;
 const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const ATTEMPT_RESET_DURATION_MS = 60 * 60 * 1000; // 1 hour - reset attempts after this time
 const STORAGE_KEY_ATTEMPTS = 'loginAttempts';
 const STORAGE_KEY_FINGERPRINT = 'browserFingerprint';
 const STORAGE_KEY_COOLDOWN = 'loginCooldownUntil';
+const STORAGE_KEY_FIRST_ATTEMPT = 'firstFailedAttemptTime';
 
 // Generate a browser fingerprint to track attempts even if localStorage is cleared
 const generateFingerprint = () => {
@@ -56,6 +58,16 @@ function Login() {
       localStorage.setItem(STORAGE_KEY_FINGERPRINT, fingerprint);
     }
     
+    // Check if 1 hour has passed since first failed attempt
+    const firstAttemptTime = localStorage.getItem(STORAGE_KEY_FIRST_ATTEMPT);
+    if (firstAttemptTime) {
+      const timeSinceFirstAttempt = Date.now() - parseInt(firstAttemptTime, 10);
+      if (timeSinceFirstAttempt >= ATTEMPT_RESET_DURATION_MS) {
+        // Reset attempts after 1 hour
+        clearCooldown();
+      }
+    }
+    
     // Load current failed attempts
     const attempts = parseInt(localStorage.getItem(STORAGE_KEY_ATTEMPTS) || '0', 10);
     setFailedAttempts(attempts);
@@ -90,6 +102,7 @@ function Login() {
   const clearCooldown = () => {
     localStorage.removeItem(STORAGE_KEY_ATTEMPTS);
     localStorage.removeItem(STORAGE_KEY_COOLDOWN);
+    localStorage.removeItem(STORAGE_KEY_FIRST_ATTEMPT);
     setIsInCooldown(false);
     setCooldownTimeRemaining(0);
     setFailedAttempts(0);
@@ -100,6 +113,11 @@ function Login() {
     const newAttempts = currentAttempts + 1;
     localStorage.setItem(STORAGE_KEY_ATTEMPTS, newAttempts.toString());
     setFailedAttempts(newAttempts);
+    
+    // Record timestamp of first failed attempt
+    if (currentAttempts === 0) {
+      localStorage.setItem(STORAGE_KEY_FIRST_ATTEMPT, Date.now().toString());
+    }
     
     // If reached max attempts, start cooldown
     if (newAttempts >= MAX_LOGIN_ATTEMPTS) {

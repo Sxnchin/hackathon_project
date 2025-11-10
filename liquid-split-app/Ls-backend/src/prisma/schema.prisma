@@ -23,24 +23,28 @@ model User {
   createdPots     Pot[]          @relation("UserCreatedPots")
   pots            PotMember[]    // pots user participates in
   receipts        Receipt[]      @relation("UserReceipts") // receipts paid by this user
-  friendships     Friend[]       @relation("UserFriendships") // friendships initiated by this user
-  friendOf        Friend[]       @relation("FriendOf") // friendships where this user was added
-  createdGroups   Group[]        @relation("UserCreatedGroups") // groups created by this user
-  groupMemberships GroupMember[] // groups user is a member of
-  createdAt       DateTime       @default(now())
+  friendships      Friend[]          @relation("UserFriendships") // friendships initiated by this user
+  friendOf         Friend[]          @relation("FriendOf") // friendships where this user was added
+  createdGroups    Group[]           @relation("UserCreatedGroups") // groups created by this user
+  groupMemberships GroupMember[]     // groups user is a member of
+  groupInvitations GroupInvitation[] // group invitations received by this user
+  notifications    Notification[]    // notifications received by this user
+  createdAt        DateTime          @default(now())
 }
 
 // =====================
 // 💧 Pot Model
 // =====================
 model Pot {
-  id          Int         @id @default(autoincrement())
-  name        String
-  totalAmount Float       @default(0)
-  creatorId   Int?
-  members     PotMember[] // relation through join table
-  receipts    Receipt[]   @relation("PotReceipts") // receipts linked to this pot
-  createdAt   DateTime    @default(now())
+  id            Int            @id @default(autoincrement())
+  name          String
+  totalAmount   Float          @default(0)
+  status        String         @default("PENDING") // PENDING, FINALIZED
+  creatorId     Int?
+  members       PotMember[]    // relation through join table
+  receipts      Receipt[]      @relation("PotReceipts") // receipts linked to this pot
+  notifications Notification[] // notifications related to this pot
+  createdAt     DateTime       @default(now())
 
   creator User? @relation("UserCreatedPots", fields: [creatorId], references: [id], onDelete: SetNull)
 }
@@ -49,10 +53,11 @@ model Pot {
 // 🤝 PotMember (Join Table)
 // =====================
 model PotMember {
-  id     Int   @id @default(autoincrement())
-  userId Int
-  potId  Int
-  share  Float @default(0)
+  id            Int    @id @default(autoincrement())
+  userId        Int
+  potId         Int
+  share         Float  @default(0)
+  paymentStatus String @default("PENDING") // PENDING, PAID, DENIED
 
   // Relations
   user User @relation(fields: [userId], references: [id])
@@ -96,11 +101,12 @@ model Friend {
 // 👪 Group Model
 // =====================
 model Group {
-  id        Int           @id @default(autoincrement())
-  name      String
-  creatorId Int
-  members   GroupMember[]
-  createdAt DateTime      @default(now())
+  id          Int               @id @default(autoincrement())
+  name        String
+  creatorId   Int
+  members     GroupMember[]
+  invitations GroupInvitation[]
+  createdAt   DateTime          @default(now())
 
   creator User @relation("UserCreatedGroups", fields: [creatorId], references: [id], onDelete: Cascade)
 }
@@ -117,4 +123,38 @@ model GroupMember {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId]) // prevents duplicate memberships
+}
+
+// =====================
+// 📨 GroupInvitation Model
+// =====================
+model GroupInvitation {
+  id        Int      @id @default(autoincrement())
+  groupId   Int
+  userId    Int      // User being invited
+  status    String   @default("pending") // pending, accepted, declined
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId]) // prevents duplicate invitations
+}
+
+// =====================
+// 🔔 Notification Model
+// =====================
+model Notification {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      // User receiving the notification
+  potId              Int?     // Related pot (if applicable)
+  friendRequestId    Int?     // Related friend request (if applicable)
+  groupInvitationId  Int?     // Related group invitation (if applicable)
+  type               String   // PAYMENT_REQUEST, PAYMENT_DENIED, FRIEND_REQUEST, GROUP_INVITATION
+  message            String
+  status             String   @default("UNREAD") // UNREAD, READ
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pot  Pot?  @relation(fields: [potId], references: [id], onDelete: Cascade)
 }

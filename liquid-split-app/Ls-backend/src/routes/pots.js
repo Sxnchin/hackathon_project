@@ -109,7 +109,9 @@ router.get("/", auth, async (req, res) => {
       const hasPositiveShare = Array.isArray(pot.members)
         ? pot.members.some((member) => Number(member.share || 0) > 0)
         : false;
-      return totalAmount > 0 || hasReceipts || hasPositiveShare;
+      const isFinalized = pot.status === "FINALIZED";
+      // Show pot if it has activity OR is finalized
+      return totalAmount > 0 || hasReceipts || hasPositiveShare || isFinalized;
     });
 
     res.json({ pots: visiblePots });
@@ -217,23 +219,20 @@ router.patch("/:id", auth, async (req, res) => {
 router.post("/:id/members", auth, async (req, res) => {
   try {
     const potId = parseInt(req.params.id);
-    const { userId, share } = req.body;
+    const { userId } = req.body;
 
     if (!Number.isInteger(potId))
       return res.status(400).json({ error: "Invalid pot id parameter." });
 
-    if (!userId || share === undefined)
+    if (!userId)
       return res
         .status(400)
-        .json({ error: "Missing userId or share in request body." });
+        .json({ error: "Missing userId in request body." });
 
     const numericUserId = parseInt(userId);
-    const numericShare = Number(share);
 
     if (!Number.isInteger(numericUserId))
       return res.status(400).json({ error: "Invalid userId." });
-    if (!Number.isFinite(numericShare) || numericShare <= 0)
-      return res.status(400).json({ error: "Share must be greater than 0." });
 
     const user = await prisma.user.findUnique({ where: { id: numericUserId } });
     if (!user) return res.status(404).json({ error: "User not found." });
@@ -248,42 +247,23 @@ router.post("/:id/members", auth, async (req, res) => {
       (member) => member.userId === numericUserId
     );
 
-    // 💳 Validate share <= user's balance
-    if (numericShare > user.balance) {
-      return res.status(400).json({
-        error: `User ${user.name} cannot contribute more than their balance ($${user.balance}).`,
-      });
+    if (existingMember) {
+      return res.status(400).json({ error: "User is already a member of this pot." });
     }
 
     const updatedPot = await prisma.$transaction(async (tx) => {
-      // 💰 Deduct the contribution from the user’s balance
-      await tx.user.update({
-        where: { id: user.id },
-        data: { balance: { decrement: numericShare } },
+
+
+      // 👥 Add member to pot
+      await tx.potMember.create({
+        data: {
+          userId: user.id,
+          potId,
+          share: 0,
+        },
       });
 
-      if (existingMember) {
-        // ➕ Increase existing member share
-        await tx.potMember.update({
-          where: { userId_potId: { userId: user.id, potId } },
-          data: { share: { increment: numericShare } },
-        });
-      } else {
-        // 👥 Add member to pot
-        await tx.potMember.create({
-          data: {
-            userId: user.id,
-            potId,
-            share: numericShare,
-          },
-        });
-      }
 
-      // 🪣 Update pot total
-      await tx.pot.update({
-        where: { id: potId },
-        data: { totalAmount: { increment: numericShare } },
-      });
 
       // 🧾 Get updated pot info (with members)
       return tx.pot.findUnique({
@@ -299,127 +279,15 @@ router.post("/:id/members", auth, async (req, res) => {
       });
     });
 
-    const action = existingMember ? "updated share in" : "added to";
-    console.log(`✅ ${user.name} ${action} pot ${potId} with $${numericShare} contribution.`);
-    res.json(updatedPot);
+    console.log(`✅ ${user.name} added to pot ${potId}.`);
+    res.json({ pot: updatedPot });
   } catch (error) {
     console.error("❌ Error adding member:", error);
     res.status(500).json({ error: "Failed to add member." });
   }
 });
 
-/* ================================
-   ♻️ UPDATE MEMBER SHARE
-================================ */
-router.patch("/:id/members/:userId", auth, async (req, res) => {
-  try {
-    const potId = parseInt(req.params.id);
-    const targetUserId = parseInt(req.params.userId);
-    const delta = Number(req.body?.delta);
-    const requesterIdRaw = req.user?.userId;
-    const requesterId = Number(requesterIdRaw);
 
-    if (!Number.isInteger(potId))
-      return res.status(400).json({ error: "Invalid pot id parameter." });
-    if (!Number.isInteger(targetUserId))
-      return res.status(400).json({ error: "Invalid user id parameter." });
-    if (!Number.isFinite(delta) || delta === 0)
-      return res.status(400).json({ error: "Delta must be a non-zero number." });
-    if (!Number.isInteger(requesterId))
-      return res.status(403).json({ error: "Unable to identify user." });
-
-    const pot = await prisma.pot.findUnique({
-      where: { id: potId },
-      include: {
-        members: true,
-      },
-    });
-    if (!pot) return res.status(404).json({ error: "Pot not found." });
-
-    // Only the member themselves or the pot owner can adjust the share
-    const isOwner = pot.creatorId && pot.creatorId === requesterId;
-    if (requesterId !== targetUserId && !isOwner) {
-      return res.status(403).json({ error: "You are not allowed to modify this share." });
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: targetUserId } });
-    if (!user) return res.status(404).json({ error: "User not found." });
-
-    const membership = pot.members.find((member) => member.userId === targetUserId);
-    const currentShare = membership?.share ?? 0;
-    const nextShare = currentShare + delta;
-
-    if (!membership && delta < 0)
-      return res.status(400).json({ error: "Cannot remove share from a non-member." });
-    if (nextShare < 0)
-      return res.status(400).json({ error: "Share cannot drop below zero." });
-
-    const nextTotal = pot.totalAmount + delta;
-    if (nextTotal < 0)
-      return res.status(400).json({ error: "Pot total cannot drop below zero." });
-
-    if (delta > 0 && user.balance < delta) {
-      return res
-        .status(400)
-        .json({ error: `User ${user.name} does not have enough balance to add $${delta}.` });
-    }
-
-    const updatedPot = await prisma.$transaction(async (tx) => {
-      if (!membership) {
-        await tx.potMember.create({
-          data: {
-            userId: targetUserId,
-            potId,
-            share: delta,
-          },
-        });
-      } else {
-        await tx.potMember.update({
-          where: { userId_potId: { userId: targetUserId, potId } },
-          data: { share: nextShare },
-        });
-      }
-
-      if (delta > 0) {
-        await tx.user.update({
-          where: { id: targetUserId },
-          data: { balance: { decrement: delta } },
-        });
-        await tx.pot.update({
-          where: { id: potId },
-          data: { totalAmount: { increment: delta } },
-        });
-      } else {
-        const absDelta = Math.abs(delta);
-        await tx.user.update({
-          where: { id: targetUserId },
-          data: { balance: { increment: absDelta } },
-        });
-        await tx.pot.update({
-          where: { id: potId },
-          data: { totalAmount: { decrement: absDelta } },
-        });
-      }
-
-      return tx.pot.findUnique({
-        where: { id: potId },
-        include: {
-          members: {
-            include: {
-              user: { select: { id: true, name: true, email: true } },
-            },
-          },
-          receipts: true,
-        },
-      });
-    });
-
-    res.json({ pot: updatedPot });
-  } catch (error) {
-    console.error("❌ Error updating member share:", error);
-    res.status(500).json({ error: "Failed to update member share." });
-  }
-});
 
 /* ================================
    🗑️ DELETE POT (OWNER ONLY)
@@ -455,6 +323,148 @@ router.delete("/:id", auth, async (req, res) => {
   } catch (error) {
     console.error("❌ Error deleting pot:", error);
     res.status(500).json({ error: "Failed to delete pot." });
+  }
+});
+
+/* ================================
+   💰 UPDATE PAYMENT STATUS
+================================ */
+router.patch("/:id/members/:memberId/payment-status", auth, async (req, res) => {
+  try {
+    const potId = Number(req.params.id);
+    const memberId = Number(req.params.memberId);
+    const { status } = req.body; // PAID or DENIED
+    const requesterId = Number(req.user?.userId);
+
+    if (!Number.isInteger(potId) || !Number.isInteger(memberId)) {
+      return res.status(400).json({ error: "Invalid parameters." });
+    }
+
+    if (!["PAID", "DENIED"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status. Must be PAID or DENIED." });
+    }
+
+    // Find the pot member
+    const potMember = await prisma.potMember.findUnique({
+      where: { userId_potId: { userId: memberId, potId } },
+      include: {
+        pot: { include: { creator: true } },
+        user: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!potMember) {
+      return res.status(404).json({ error: "Pot member not found." });
+    }
+
+    // Only the member themselves can update their payment status
+    if (memberId !== requesterId) {
+      return res.status(403).json({ error: "You can only update your own payment status." });
+    }
+
+    // Update payment status
+    const updated = await prisma.potMember.update({
+      where: { userId_potId: { userId: memberId, potId } },
+      data: { paymentStatus: status },
+    });
+
+    // If denied, remove member from pot and notify creator
+    if (status === "DENIED") {
+      await prisma.potMember.delete({
+        where: { userId_potId: { userId: memberId, potId } },
+      });
+
+      // Notify the creator
+      if (potMember.pot.creatorId) {
+        await prisma.notification.create({
+          data: {
+            userId: potMember.pot.creatorId,
+            potId: potId,
+            type: "PAYMENT_DENIED",
+            message: `${potMember.user.name} has declined to participate in pot "${potMember.pot.name}".`,
+            status: "UNREAD",
+          },
+        });
+      }
+
+      return res.json({ message: "You have been removed from the pot.", removed: true });
+    }
+
+    res.json({ potMember: updated });
+  } catch (error) {
+    console.error("❌ Error updating payment status:", error);
+    res.status(500).json({ error: "Failed to update payment status." });
+  }
+});
+
+/* ================================
+   🏁 FINALIZE POT (Start Split)
+================================ */
+router.post("/:id/finalize", auth, async (req, res) => {
+  try {
+    const potId = Number(req.params.id);
+    const requesterId = Number(req.user?.userId);
+
+    if (!Number.isInteger(potId)) {
+      return res.status(400).json({ error: "Invalid pot ID." });
+    }
+
+    const pot = await prisma.pot.findUnique({
+      where: { id: potId },
+      include: {
+        members: {
+          include: { user: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    if (!pot) {
+      return res.status(404).json({ error: "Pot not found." });
+    }
+
+    // Only creator can finalize
+    if (pot.creatorId !== requesterId) {
+      return res.status(403).json({ error: "Only the pot creator can finalize the pot." });
+    }
+
+    // Check if all members have paid
+    const unpaidMembers = pot.members.filter(m => m.paymentStatus !== "PAID");
+
+    if (unpaidMembers.length > 0) {
+      const unpaidNames = unpaidMembers.map(m => m.user.name).join(", ");
+      return res.status(400).json({
+        error: "Not all members have paid yet.",
+        unpaidMembers: unpaidNames,
+      });
+    }
+
+    // All members have paid - mark pot as finalized and delete all related notifications
+    const finalizedPot = await prisma.$transaction(async (tx) => {
+      // Delete all notifications related to this pot
+      await tx.notification.deleteMany({
+        where: { potId: potId },
+      });
+
+      // Update pot status to FINALIZED
+      return tx.pot.update({
+        where: { id: potId },
+        data: { status: "FINALIZED" },
+        include: {
+          members: {
+            include: { user: { select: { id: true, name: true } } },
+          },
+        },
+      });
+    });
+
+    res.json({
+      success: true,
+      message: "Pot finalized successfully. All members have confirmed payment.",
+      pot: finalizedPot,
+    });
+  } catch (error) {
+    console.error("❌ Error finalizing pot:", error);
+    res.status(500).json({ error: "Failed to finalize pot." });
   }
 });
 

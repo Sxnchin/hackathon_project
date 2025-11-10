@@ -55,9 +55,30 @@ router.post("/add", auth, async (req, res) => {
       return res.status(400).json({ error: "Already friends." });
     }
 
-    // Create friend request (only one direction - from requester to recipient)
-    await prisma.friend.create({
-      data: { userId, friendId: friendIdNum, status: "pending" },
+    // Create friend request and notification in a transaction
+    const friendRequest = await prisma.$transaction(async (tx) => {
+      const request = await tx.friend.create({
+        data: { userId, friendId: friendIdNum, status: "pending" },
+      });
+
+      // Get the requester's name for the notification message
+      const requester = await tx.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+
+      // Create notification for the recipient
+      await tx.notification.create({
+        data: {
+          userId: friendIdNum,
+          friendRequestId: request.id,
+          type: "FRIEND_REQUEST",
+          message: `${requester.name} sent you a friend request`,
+          status: "UNREAD",
+        },
+      });
+
+      return request;
     });
 
     res.status(201).json({ 
@@ -114,10 +135,21 @@ router.get("/", auth, async (req, res) => {
       },
     });
 
-    const friends = [
+    // Combine and deduplicate friends based on ID
+    const allFriends = [
       ...sentFriendships.map((f) => f.friend),
       ...receivedFriendships.map((f) => f.user),
     ];
+
+    // Remove duplicates by creating a Map with friend ID as key
+    const uniqueFriendsMap = new Map();
+    allFriends.forEach(friend => {
+      if (!uniqueFriendsMap.has(friend.id)) {
+        uniqueFriendsMap.set(friend.id, friend);
+      }
+    });
+
+    const friends = Array.from(uniqueFriendsMap.values());
 
     res.json({ friends });
   } catch (error) {
@@ -193,7 +225,7 @@ router.post("/accept/:requestId", auth, async (req, res) => {
       return res.status(404).json({ error: "Friend request not found." });
     }
 
-    // Accept the request and create reverse friendship
+    // Accept the request, create reverse friendship, and delete notification
     await prisma.$transaction([
       // Update original request to accepted
       prisma.friend.update({
@@ -206,6 +238,13 @@ router.post("/accept/:requestId", auth, async (req, res) => {
           userId,
           friendId: request.userId,
           status: "accepted",
+        },
+      }),
+      // Delete the notification associated with this friend request
+      prisma.notification.deleteMany({
+        where: {
+          friendRequestId: requestId,
+          userId: userId,
         },
       }),
     ]);
@@ -242,9 +281,18 @@ router.post("/decline/:requestId", auth, async (req, res) => {
       return res.status(404).json({ error: "Friend request not found." });
     }
 
-    await prisma.friend.delete({
-      where: { id: requestId },
-    });
+    // Delete friend request and associated notification
+    await prisma.$transaction([
+      prisma.friend.delete({
+        where: { id: requestId },
+      }),
+      prisma.notification.deleteMany({
+        where: {
+          friendRequestId: requestId,
+          userId: userId,
+        },
+      }),
+    ]);
 
     res.json({ message: "Friend request declined." });
   } catch (error) {
