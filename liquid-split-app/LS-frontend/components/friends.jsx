@@ -179,10 +179,10 @@ function Friends() {
           type: 'success',
           message: 'Friend request sent!',
         });
-        // Reload search results
-        if (searchTerm) {
-          await searchUsers();
-        }
+        // Optimistically update the searchResults so the button shows "Pending"
+        setSearchResults(prev => prev.map(u => u.id === friendId ? { ...u, friendStatus: 'pending' } : u));
+        // Also reload friend requests in background
+        loadFriendRequests().catch(() => {});
       } else {
         setNotification({
           type: 'error',

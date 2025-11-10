@@ -60,7 +60,9 @@ if (process.env.NODE_ENV === "production") {
 // ===== Security Middlewares =====
 app.disable("x-powered-by");
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+// Allow only the frontend origin to send credentials (cookies)
+const frontendOrigin = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
+app.use(cors({ origin: frontendOrigin, credentials: true }));
 
 // ✅ Mount webhook FIRST (Stripe requires raw body)
 app.post("/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhook);

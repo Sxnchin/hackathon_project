@@ -9,6 +9,7 @@ import Demo from "../components/demo";
 import OnboardSuccess from "../components/onboardSuccess";
 import Login from "../components/login";
 import Profile from "../components/profile";
+import CompleteProfile from "../components/completeProfile";
 import Pots from "../components/pots";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Friends from "../components/friends";
@@ -44,6 +45,9 @@ function App() {
 
           {/* 🔐 Login Page */}
           <Route path="/login" element={<Login />} />
+
+          {/* ✅ Complete profile after OAuth */}
+          <Route path="/complete-profile" element={<CompleteProfile />} />
 
           {/* � Forgot Password Page */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
