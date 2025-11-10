@@ -16,16 +16,23 @@ import Friends from "../components/friends";
 import Owners from "../components/owners";
 import ChangePassword from "../components/changePassword";
 import ForgotPassword from "../components/forgotPassword";
+import FreshNFTs from "../components/FreshNFTs";
+import NFTDemo from "./components/NFTDemo";
+
 // ✅ Auth Context
 import { AuthProvider } from "./utils/authContext";
 
+// ✅ Web3 Context
+import { Web3Provider } from "./utils/web3Context";
+
 function App() {
   return (
-    <div className="app">
-<AuthProvider>
-      <Router>
-        {/* 🔝 Global Navbar (shows on all pages) */}
-        <Nav />
+    <AuthProvider>
+      <Web3Provider>
+        <div className="app">
+          <Router>
+            {/* 🔝 Global Navbar (shows on all pages) */}
+            <Nav />
 
         {/* 🧭 Route Configuration */}
         <Routes>
@@ -81,11 +88,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* 🎨 NFT Minting Demo */}
+          <Route path="/nft-demo" element={<NFTDemo />} />
+
+          {/* 🎨 Fresh NFT Collection */}
+          <Route path="/pots/:potId/nfts" element={<FreshNFTs />} />
         </Routes>
-      </Router>
+          </Router>
+        </div>
+      </Web3Provider>
     </AuthProvider>
-    </div>
-    
   );
 }
 

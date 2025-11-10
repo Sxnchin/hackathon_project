@@ -27,7 +27,9 @@ Using the included project:
 1. Open `LiquidSplitAppTime/LiquidSplitAppTime.xcodeproj` in Xcode.
 2. Pick a simulator/device from the scheme menu (`LiquidSplitAppTime` target) and build (`⌘B`) to verify.
 3. Update the bundle identifier + signing team if you plan to run on device.
-4. Set your backend base URL in `LiquidSplitAppTime/Resources/AppConfig.swift`.
+4. Point the app at your backend:
+   - For the **simulator**, the default `http://localhost:4000` works as long as the backend runs on the same Mac.
+   - For a **physical device**, add an environment variable called `LIQUIDSPLIT_API_BASE_URL` to the Run scheme (e.g. `http://192.168.1.23:4000`) or add an `LIQUIDSPLIT_API_BASE_URL` key to the target’s Info settings so the device hits your Mac over the local network.
 
 Rolling your own project from the raw source:
 1. In Xcode, create a new **App** project (SwiftUI + Swift).

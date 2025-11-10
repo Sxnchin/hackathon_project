@@ -8,13 +8,14 @@ import { PrismaClient } from "@prisma/client";
 
 
 import potRoutes from "./routes/pots.js";
-import receiptsRoutes from "./routes/receipts.js";
+import receiptsRoutes from "./routes/freshReceipts.js";
 import authRoutes from "./routes/auth.js";
 import transactionsRoutes from "./routes/transactions.js";
 import stripeRoutes, { stripeWebhook } from "./routes/stripe.js";
 import friendsRoutes from "./routes/friends.js";
 import groupsRoutes from "./routes/groups.js";
 import notificationsRoutes from "./routes/notifications.js";
+import productionNFTRoutes from "./routes/productionNFT.js";
 import { auth } from "./middleware/auth.js";
 
 dotenv.config();
@@ -121,6 +122,7 @@ app.use("/stripe", stripeRoutes);               // protected
 app.use("/friends", auth, friendsRoutes);       // protected
 app.use("/groups", auth, groupsRoutes);         // protected
 app.use("/notifications", auth, notificationsRoutes); // protected
+app.use("/api/nft", productionNFTRoutes);       // NFT routes (some public, some protected)
 
 // ===== 404 Handler =====
 app.use((req, res) => {
